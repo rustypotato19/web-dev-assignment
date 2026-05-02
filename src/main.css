@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+:root {
+  --local-green: #236d05;
+  --local-green-light: #2a8a0a;
+  --local-green-dark: #1b5a04;
+}
+
+html {
+  max-width: 100vw;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+/* Smooth scroll */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+.scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #236d05 transparent;
+}
+
+.scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar::-webkit-scrollbar-thumb {
+  background-color: #236d05;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* Prevent layout shift */
+.scrollbar {
+  scrollbar-gutter: stable;
+}
