@@ -75,7 +75,7 @@ function NavModal() {
     ? {
         Home: "/home",
         "My Lists": "/lists",
-        "My Profile": `/profile/${ctx?.username}`,
+        "My Profile": `/profile`,
         About: "/about",
         Logout: "",
       }
@@ -87,6 +87,15 @@ function NavModal() {
       };
 
   const urlBase = "http://localhost:5173";
+
+  if (!ctx) {
+    return (
+      <MyError
+        ErrorCode={1002}
+        ErrorMessage="Context failed to initialise. Please try again."
+      />
+    );
+  }
 
   return (
     <motion.div

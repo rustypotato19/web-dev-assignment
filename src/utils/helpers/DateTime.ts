@@ -3,7 +3,7 @@ export default function shorthandDateMonthToLong(date: string): string {
 
     const d = dm[0];
     const m = parseInt(dm[1], 10);
-    const y = parseInt(dm[2], 10) || -1;
+    const y = parseInt(dm[2], 10) || new Date().getFullYear();
 
     const monthIndex: Record<number, string> = {
         1: "January",

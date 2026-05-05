@@ -1,7 +1,11 @@
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import Header from "../../components/header/Header";
 import { AnimatePresence, motion } from "framer-motion";
-import { validEmail } from "../../utils/auth/LogonHandler";
+import {
+  validDob,
+  validEmail,
+  validFullName,
+} from "../../utils/auth/LogonHandler";
 import { CircleCheck, CircleX } from "lucide-react";
 import { useNavigate } from "react-router";
 import { setSession } from "../../utils/auth/SessionHandler";
@@ -29,6 +33,15 @@ export default function Signup() {
   const [password, setPassword] = useState<string>("");
   const [passwordTouched, setPasswordTouched] = useState<boolean>(false);
 
+  // FULLNAME
+
+  const [name, setName] = useState<string>("");
+  const [nameTouched, setNameTouched] = useState<boolean>(false);
+
+  // DOB
+  const [date, setDate] = useState<string>("");
+  const [dateTouched, setDateTouched] = useState<boolean>(false);
+
   // =========================
   // DERIVED VALIDATION
   // =========================
@@ -39,6 +52,24 @@ export default function Signup() {
 
   // Username
   const usernameValid = username.length >= 3;
+
+  // Fullname
+  const nameValid = validFullName(name);
+
+  // DoB
+  const [dobValid, setDobValid] = useState<boolean>(false);
+  const [dobErrorMessage, setDobErrorMessage] = useState<string>("ERR");
+
+  useEffect(() => {
+    function validateDob() {
+      if (date) {
+        const res = validDob(new Date(date));
+        setDobValid(res[0]);
+        setDobErrorMessage(res[1]);
+      }
+    }
+    validateDob();
+  });
 
   // Password rules
   const hasLower = /[a-z]/.test(password);
@@ -57,9 +88,10 @@ export default function Signup() {
   // =========================
 
   const canProceedStep0 = emailIsValid && emailsMatch;
-  const canProceedStep1 = usernameValid && passwordValid;
+  const canProceedStep1 = nameValid && dobValid;
+  const canProceedStep2 = usernameValid && passwordValid;
 
-  const totalSteps = 2;
+  const totalSteps = 3;
   const progress = (stepCounter / totalSteps) * 100;
 
   // =========================
@@ -125,7 +157,7 @@ export default function Signup() {
             transition={{ duration: 0.75 }}
           >
             {/* ========================= */}
-            {/* STEP 0: EMAIL */}
+            {/* STEP 1: EMAIL */}
             {/* ========================= */}
             {stepCounter === 0 && (
               <div className="flex flex-col gap-6 w-full">
@@ -196,10 +228,81 @@ export default function Signup() {
               </div>
             )}
 
-            {/* =========================== */}
-            {/* STEP 1: USERNAME + PASSWORD */}
-            {/* =========================== */}
+            {/* ========================= */}
+            {/* STEP 2: Name and DOB */}
+            {/* ========================= */}
             {stepCounter === 1 && (
+              <div className="flex flex-col gap-6 w-full">
+                {/* Username */}
+                <div className="flex flex-col gap-2">
+                  <h2 className="font-semibold text-2xl">Full Name</h2>
+                  <input
+                    type="text"
+                    name="fullname"
+                    autoComplete="on"
+                    placeholder="John Doe"
+                    className={`border rounded-xl w-full px-3 py-2 ${name != "" && "font-semibold"}`}
+                    value={name}
+                    autoCapitalize="on"
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      if (!nameTouched) setNameTouched(true);
+                    }}
+                  />
+                  <p
+                    className={
+                      nameTouched && !nameValid ? "text-red-600" : "text-white"
+                    }
+                  >
+                    Invalid Name
+                  </p>
+                </div>
+
+                {/* DOB */}
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="date"
+                    name="dob"
+                    placeholder="19/05/2004"
+                    className={`border rounded-xl px-3 py-2 w-full uppercase ${date === "" ? "text-neutral-600/80" : ""}`}
+                    value={date}
+                    max={new Date().toISOString().split("T")[0]}
+                    onChange={(e) => {
+                      setDate(e.target.value);
+                      if (!dateTouched) setDateTouched(true);
+                    }}
+                  />
+                  <p
+                    className={
+                      dateTouched && !dobValid ? "text-red-600" : "text-white"
+                    }
+                  >
+                    {dobErrorMessage}
+                  </p>
+                </div>
+
+                {/* Next Button */}
+                <button
+                  className="text-2xl font-bold text-white bg-(--local-green) py-3 px-6 rounded-xl shadow-xl border hover:scale-105 hover:bg-(--local-green-light) transition-all duration-200 active:bg-(--local-green-dark) cursor-pointer disabled:cursor-not-allowed disabled:opacity-25 disabled:scale-100 disabled:bg-(--local-green)"
+                  onClick={() => {
+                    if (canProceedStep1) {
+                      setStepCounter((x) => x + 1);
+                    } else {
+                      setEmailTouched(true);
+                      setEmailVerTouched(true);
+                    }
+                  }}
+                  disabled={!canProceedStep1}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+
+            {/* =========================== */}
+            {/* STEP 3: USERNAME + PASSWORD */}
+            {/* =========================== */}
+            {stepCounter === 2 && (
               <div className="flex flex-col gap-6 w-full">
                 {/* Username */}
                 <div className="flex flex-col gap-2">
@@ -299,7 +402,7 @@ export default function Signup() {
                 <button
                   className="text-2xl font-bold text-white bg-(--local-green) py-3 px-6 rounded-xl shadow-xl border hover:scale-105 hover:bg-(--local-green-light) transition-all duration-200 active:bg-(--local-green-dark) cursor-pointer disabled:cursor-not-allowed disabled:opacity-25 disabled:scale-100"
                   onClick={() => {
-                    if (canProceedStep1) {
+                    if (canProceedStep2) {
                       setStepCounter(stepCounter + 1);
                       onAccountCreate();
                     } else {
@@ -307,7 +410,7 @@ export default function Signup() {
                       setPasswordTouched(true);
                     }
                   }}
-                  disabled={!canProceedStep1}
+                  disabled={!canProceedStep2}
                 >
                   Create Account
                 </button>

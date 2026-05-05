@@ -2,9 +2,11 @@ import { useContext } from "react";
 import Header from "../../components/header/Header";
 import SessionContext from "../../utils/contexts/sessions/SessionContext";
 import MyError from "../error/Error";
+import { useParams } from "react-router";
 
 export default function Profile() {
   const ctx = useContext(SessionContext);
+  const { username: paramUsername } = useParams();
 
   if (!ctx) {
     return (
@@ -15,7 +17,11 @@ export default function Profile() {
     );
   }
 
-  if (!ctx.username || ctx.username === "") {
+  // Resolve username + email safely
+  const username = paramUsername || ctx.username || "";
+  const email = ctx.email || "user@gmail.com";
+
+  if (!username) {
     return (
       <MyError
         ErrorCode={1003}
@@ -23,12 +29,15 @@ export default function Profile() {
       />
     );
   }
+
   return (
     <div>
       <Header />
-      <div className="w-screen min-h-60 h-fit flex flex-col justify-center items-center gap-6 z-0">
+
+      <div className="w-screen min-h-60 flex flex-col justify-center items-center gap-6">
         <h1 className="text-2xl font-bold text-(--local-green-dark)">
-          <span className="italic">{ctx.username}</span>'s Profile
+          <span className="italic">{username || email}</span>
+          's Profile
         </h1>
       </div>
     </div>
