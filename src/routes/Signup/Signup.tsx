@@ -92,14 +92,14 @@ export default function Signup() {
   const canProceedStep2 = usernameValid && passwordValid;
 
   const totalSteps = 3;
-  const progress = (stepCounter / totalSteps) * 100;
+  const progress = (stepCounter + 1 / totalSteps) * 100;
 
   // =========================
   // UI HELPERS
   // =========================
 
   const bulletClass = (valid: boolean, touched: boolean) =>
-    `flex flex-row justify-start items-center gap-1 ${touched ? (valid ? "text-green-600" : "text-red-600") : "text-gray-400"}`;
+    `flex flex-row justify-start items-center gap-1 ${touched ? (valid ? "text-green-600" : "text-red-600") : "text-gray-400"} transition-all duration-300`;
 
   // =========================
   // FUNCTIONS
@@ -403,7 +403,6 @@ export default function Signup() {
                   className="text-2xl font-bold text-white bg-(--local-green) py-3 px-6 rounded-xl shadow-xl border hover:scale-105 hover:bg-(--local-green-light) transition-all duration-200 active:bg-(--local-green-dark) cursor-pointer disabled:cursor-not-allowed disabled:opacity-25 disabled:scale-100"
                   onClick={() => {
                     if (canProceedStep2) {
-                      setStepCounter(stepCounter + 1);
                       onAccountCreate();
                     } else {
                       setUsernameTouched(true);
