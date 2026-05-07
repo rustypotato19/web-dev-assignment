@@ -35,7 +35,7 @@ export default function Login() {
     }
 
     if (ctx) {
-      ctx.deriveUserVariablesToContext();
+      ctx.sessionUserVariablesToContext();
     }
 
     navigation("/home");

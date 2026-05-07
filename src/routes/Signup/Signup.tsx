@@ -5,8 +5,14 @@ import {
   validDob,
   validEmail,
   validFullName,
+  validUsername,
 } from "../../utils/auth/LogonHandler";
-import { CircleCheck, CircleX } from "lucide-react";
+import {
+  CircleCheck,
+  CircleQuestionMark,
+  CircleX,
+  UserRound,
+} from "lucide-react";
 import { useNavigate } from "react-router";
 import { setSession } from "../../utils/auth/SessionHandler";
 import SessionContext from "../../utils/contexts/sessions/SessionContext";
@@ -42,6 +48,12 @@ export default function Signup() {
   const [date, setDate] = useState<string>("");
   const [dateTouched, setDateTouched] = useState<boolean>(false);
 
+  // PFP
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [profileFile, setProfileFile] = useState<File | null>(null);
+  const [profilePreview, setProfilePreview] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+
   // =========================
   // DERIVED VALIDATION
   // =========================
@@ -51,7 +63,9 @@ export default function Signup() {
   const emailsMatch = email === emailVer && email !== "";
 
   // Username
-  const usernameValid = username.length >= 3;
+  const [usernameValid, setUsernameValid] = useState<boolean>(false);
+  const [usernameErrorMessage, setUsernameErrorMessage] =
+    useState<string>("ERR");
 
   // Fullname
   const nameValid = validFullName(name);
@@ -62,6 +76,17 @@ export default function Signup() {
 
   useEffect(() => {
     function validateDob() {
+      if (username) {
+        const res = validUsername(username);
+        setUsernameValid(res[0]);
+        setUsernameErrorMessage(res[1]);
+      }
+    }
+    validateDob();
+  }, [username]);
+
+  useEffect(() => {
+    function validateDob() {
       if (date) {
         const res = validDob(new Date(date));
         setDobValid(res[0]);
@@ -69,7 +94,7 @@ export default function Signup() {
       }
     }
     validateDob();
-  });
+  }, [date]);
 
   // Password rules
   const hasLower = /[a-z]/.test(password);
@@ -89,10 +114,11 @@ export default function Signup() {
 
   const canProceedStep0 = emailIsValid && emailsMatch;
   const canProceedStep1 = nameValid && dobValid;
-  const canProceedStep2 = usernameValid && passwordValid;
+  const canProceedStep2 = true;
+  const canProceedStep3 = usernameValid && passwordValid;
 
-  const totalSteps = 3;
-  const progress = (stepCounter + 1 / totalSteps) * 100;
+  const totalSteps = 4;
+  const progress = ((stepCounter + 1) / totalSteps) * 100;
 
   // =========================
   // UI HELPERS
@@ -106,16 +132,67 @@ export default function Signup() {
   // =========================
 
   function onAccountCreate() {
-    if (keepSession) setSession(email, username);
-
-    if (ctx) {
-      ctx.deriveUserVariablesToContext();
+    if (keepSession) {
+      setSession(email, username, name, profilePreview || undefined);
     }
 
-    setTimeout(() => {
-      navigate("/home");
-    }, 1500);
+    ctx?.setEmail(email);
+    ctx?.setUsername(username);
+    ctx?.setFullname(name);
+
+    ctx?.setIsLoggedIn(true);
+
+    navigate("/home");
   }
+
+  function handleImage(file: File | null) {
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      const imageString = reader.result as string;
+
+      // store usable image string
+      setProfilePreview(imageString);
+
+      // optional raw file if backend upload needed later
+      setProfileFile(file);
+
+      console.log(imageString);
+    };
+
+    reader.readAsDataURL(file);
+  }
+
+  function handleDrag(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const file = e.dataTransfer.files?.[0];
+    handleImage(file);
+  }
+
+  function exportData() {
+    const data = [username, name, password, email, profilePreview];
+    return data;
+  }
+
+  // =========================
+  // Context Return
+  // =========================
 
   if (!ctx) {
     return (
@@ -216,6 +293,9 @@ export default function Signup() {
                   onClick={() => {
                     if (canProceedStep0) {
                       setStepCounter((x) => x + 1);
+                      if (email) {
+                        ctx.setEmail(email);
+                      }
                     } else {
                       setEmailTouched(true);
                       setEmailVerTouched(true);
@@ -233,7 +313,7 @@ export default function Signup() {
             {/* ========================= */}
             {stepCounter === 1 && (
               <div className="flex flex-col gap-6 w-full">
-                {/* Username */}
+                {/* Full Name */}
                 <div className="flex flex-col gap-2">
                   <h2 className="font-semibold text-2xl">Full Name</h2>
                   <input
@@ -264,7 +344,7 @@ export default function Signup() {
                     type="date"
                     name="dob"
                     placeholder="19/05/2004"
-                    className={`border rounded-xl px-3 py-2 w-full uppercase ${date === "" ? "text-neutral-600/80" : ""}`}
+                    className={`border rounded-xl px-3 py-2 w-full uppercase ${date === "" ? "text-neutral-600/80" : "font-medium"}`}
                     value={date}
                     max={new Date().toISOString().split("T")[0]}
                     onChange={(e) => {
@@ -287,6 +367,9 @@ export default function Signup() {
                   onClick={() => {
                     if (canProceedStep1) {
                       setStepCounter((x) => x + 1);
+                      if (name) {
+                        ctx.setFullname(name);
+                      }
                     } else {
                       setEmailTouched(true);
                       setEmailVerTouched(true);
@@ -296,13 +379,124 @@ export default function Signup() {
                 >
                   Next
                 </button>
+                <a
+                  href="/about/FullNameDOB"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Opens in a new tab"
+                  className="max-w-full w-fit mx-auto flex flex-row items-center justify-center gap-2 opacity-50 hover:scale-105 transition-all duration-300 cursor-pointer"
+                >
+                  <CircleQuestionMark size={24} />
+                  <p className="w-40 text-xs font-semibold">
+                    Why do we ask for this information?
+                  </p>
+                </a>
               </div>
             )}
 
             {/* =========================== */}
-            {/* STEP 3: USERNAME + PASSWORD */}
+            {/* STEP 3: Profile Picture */}
             {/* =========================== */}
+
             {stepCounter === 2 && (
+              <div className="flex flex-col gap-6 w-full items-center">
+                <h2 className="font-semibold text-2xl text-center">
+                  Add a Profile Picture (Optional)
+                </h2>
+
+                {/* Upload Circle */}
+                <div
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                  className={`group relative w-40 h-40 rounded-full overflow-hidden border-3 transition-all duration-300
+      ${
+        dragActive
+          ? "border-(--local-green) scale-105 bg-green-50"
+          : "border-(--local-green-light) hover:border-(--local-green)"
+      }`}
+                >
+                  <label className="w-full h-full cursor-pointer flex items-center justify-center">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleImage(e.target.files?.[0] || null)}
+                    />
+
+                    {/* Image */}
+                    {profilePreview ? (
+                      <>
+                        <img
+                          src={profilePreview}
+                          alt="Profile Preview"
+                          className="w-full h-full object-cover"
+                        />
+
+                        {/* Hover Overlay */}
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
+                          <p className="text-white text-sm font-semibold text-center px-3">
+                            Click to change
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* Empty State */}
+                        <div className="flex flex-col items-center justify-center text-gray-400 gap-2">
+                          <UserRound size={72} strokeWidth={1.5} />
+
+                          <p className="text-sm font-medium text-center px-4">
+                            Click to upload
+                          </p>
+                        </div>
+
+                        {/* Hover Overlay */}
+                        <div className="absolute inset-0 bg-(--local-green)/10 opacity-0 group-hover:opacity-100 transition-all duration-300" />
+                      </>
+                    )}
+                  </label>
+                </div>
+
+                {/* Remove Button */}
+                {profilePreview && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileFile(null);
+                      setProfilePreview(null);
+                    }}
+                    className="text-sm text-red-500 hover:text-red-700 transition-all duration-200 hover:scale-105 cursor-pointer"
+                  >
+                    Remove Image
+                  </button>
+                )}
+
+                {/* Actions */}
+                <div className="flex w-fit mx-auto">
+                  <button
+                    className="text-2xl font-bold text-white bg-(--local-green) py-3 px-6 rounded-xl shadow-xl border hover:scale-105 hover:bg-(--local-green-light) transition-all duration-200 active:bg-(--local-green-dark) cursor-pointer disabled:cursor-not-allowed disabled:opacity-25 disabled:scale-100 disabled:bg-(--local-green)"
+                    onClick={() => {
+                      if (canProceedStep2) {
+                        if (profilePreview) {
+                          localStorage.setItem("profileImage", profilePreview);
+                        }
+                        setStepCounter((x) => x + 1);
+                      }
+                    }}
+                    disabled={!canProceedStep2}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* =========================== */}
+            {/* STEP 4: USERNAME + PASSWORD */}
+            {/* =========================== */}
+            {stepCounter === 3 && (
               <div className="flex flex-col gap-6 w-full">
                 {/* Username */}
                 <div className="flex flex-col gap-2">
@@ -326,7 +520,7 @@ export default function Signup() {
                         : "text-white"
                     }
                   >
-                    Must be at least 3 characters
+                    {usernameErrorMessage}
                   </p>
                 </div>
 
@@ -402,14 +596,15 @@ export default function Signup() {
                 <button
                   className="text-2xl font-bold text-white bg-(--local-green) py-3 px-6 rounded-xl shadow-xl border hover:scale-105 hover:bg-(--local-green-light) transition-all duration-200 active:bg-(--local-green-dark) cursor-pointer disabled:cursor-not-allowed disabled:opacity-25 disabled:scale-100"
                   onClick={() => {
-                    if (canProceedStep2) {
+                    if (canProceedStep3) {
                       onAccountCreate();
                     } else {
                       setUsernameTouched(true);
                       setPasswordTouched(true);
                     }
+                    console.log(exportData());
                   }}
-                  disabled={!canProceedStep2}
+                  disabled={!canProceedStep3}
                 >
                   Create Account
                 </button>

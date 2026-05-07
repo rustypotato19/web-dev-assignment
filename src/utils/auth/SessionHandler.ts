@@ -39,12 +39,14 @@ export function getUsernamefromSession(): string | null {
     return null;
 }
 
-export function setSession(email?: string, username?: string): void {
+export function setSession(email?: string, username?: string, fullname?: string, profileImage?: string): void {
     const cookies = new Cookies()
     const expires = new Date()
     expires.setFullYear(expires.getFullYear() + 1);
     if (email) cookies.set("email", email, { path: "/", expires });
     if (username) cookies.set("username", username, { path: "/", expires })
+    if (fullname) cookies.set("fullname", fullname, { path: "/", expires })
+    if (profileImage) cookies.set("profileImage", profileImage, { path: "/", expires })
     cookies.set("loggedIn", true, { path: "/", expires });
     cookies.set("sessionId", crypto.randomUUID(), {
         path: "/",

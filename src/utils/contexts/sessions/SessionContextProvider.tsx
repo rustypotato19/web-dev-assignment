@@ -11,23 +11,50 @@ export default function SessionContextProvider({ children }: Props) {
 
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
-  const [email, setEmail] = useState<string>("");
-  const [username, setUsername] = useState<string>("");
+  const [email, setEmail] = useState<string | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
+  const [fullname, setFullname] = useState<string | null>(null);
 
-  function deriveUserVariablesToContext() {
-    setIsLoggedIn(cookies.get("loggedIn"));
-    setEmail(cookies.get("email"));
-    setUsername(cookies.get("username"));
+  function sessionUserVariablesToContext(): void {
+    setIsLoggedIn(!!cookies.get("loggedIn"));
+    setEmail(cookies.get("email") ?? "");
+    setUsername(cookies.get("username") ?? "");
+    setFullname(cookies.get("fullname") ?? "");
   }
 
-  /* On Mount */
+  function contextUserVariablesToSession(
+    cookies: Cookies,
+    override?: {
+      email?: string;
+      username?: string;
+      fullname?: string;
+    },
+  ): void {
+    const expires = new Date();
+    expires.setFullYear(expires.getFullYear() + 1);
+
+    if (override?.username ?? username)
+      cookies.set("username", override?.username ?? username, {
+        path: "/",
+        expires,
+      });
+
+    if (override?.email ?? email)
+      cookies.set("email", override?.email ?? email, { path: "/", expires });
+
+    if (override?.fullname ?? fullname)
+      cookies.set("fullname", override?.fullname ?? fullname, {
+        path: "/",
+        expires,
+      });
+  }
+
+  /* ON MOUNT */
   useEffect(() => {
-    function onMount() {
-      if (cookies.get("sessionId")) {
-        deriveUserVariablesToContext();
-      }
+    if (cookies.get("sessionId")) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      sessionUserVariablesToContext();
     }
-    onMount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -37,11 +64,14 @@ export default function SessionContextProvider({ children }: Props) {
         isLoggedIn,
         email,
         username,
+        fullname,
         setIsLoggedIn,
         setEmail,
         setUsername,
+        setFullname,
 
-        deriveUserVariablesToContext,
+        sessionUserVariablesToContext,
+        contextUserVariablesToSession,
       }}
     >
       {children}

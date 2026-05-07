@@ -13,6 +13,7 @@ import Home from "./routes/home/Home";
 import MyError from "./routes/error/Error";
 import SessionContextProvider from "./utils/contexts/sessions/SessionContextProvider";
 import Profile from "./routes/profile/Profile";
+import About from "./routes/about/About";
 
 createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
@@ -25,8 +26,11 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
-          <Route path={`/profile`} element={<Profile />} />
+          <Route path="profile" element={<Profile />} />
           <Route path="/profile/:username" element={<Profile />} />
+
+          <Route path="about" element={<About />} />
+          <Route path="about/:anchor" element={<About />} />
 
           <Route
             path="*"

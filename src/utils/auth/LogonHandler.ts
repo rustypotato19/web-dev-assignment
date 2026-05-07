@@ -14,6 +14,15 @@ export function validFullName(name: string): boolean {
     return nameRegex.test(name) && name.length >= 3 && name.length <= 127;
 }
 
+export function validUsername(uname: string): [boolean, string] {
+    const unameRegex = /^\w+$/; // 👈 allow 1+ word chars
+
+    if (uname.length < 3) return [false, "Entered username too short"]
+    if (uname.length > 127) return [false, "Entered username too long"]
+    if (!unameRegex.test(uname)) return [false, "No special characters other than '_'"]
+    return [true, "OK"]
+}
+
 export function validDob(dob: Date): [boolean, string] {
     if (!dob || isNaN(dob.getTime())) return [false, "No date passed"];
 

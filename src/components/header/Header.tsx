@@ -7,7 +7,11 @@ import { useNavigate } from "react-router";
 import SessionContext from "../../utils/contexts/sessions/SessionContext";
 import MyError from "../../routes/error/Error";
 
-export default function Header() {
+type Props = {
+  sticky?: true;
+};
+
+export default function Header({ sticky }: Props) {
   const ctx = useContext(SessionContext);
 
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
@@ -30,7 +34,9 @@ export default function Header() {
 
   return (
     <>
-      <div className="relative w-screen h-fit flex items-center justify-between bg-(--local-green) text-white p-8 z-30 shadow-xl">
+      <div
+        className={`${sticky && "sticky top-0"} relative w-screen h-fit flex items-center justify-between bg-(--local-green) text-white p-8 z-30 shadow-xl`}
+      >
         <a
           href="/"
           className="text-2xl font-bold hover:scale-105 duration-300 transition-all"
