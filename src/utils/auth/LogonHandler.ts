@@ -44,3 +44,16 @@ export function validDob(dob: Date): [boolean, string] {
 
     return [true, "OK"];
 }
+
+export async function validateServerConnection(): Promise<boolean> {
+    try {
+        const res = await fetch(
+            "/api/health"
+        );
+        console.log("Successfully validated")
+        return res.ok;
+    } catch (err) {
+        console.error("Server validation failed:", err);
+        return false;
+    }
+}

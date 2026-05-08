@@ -15,6 +15,8 @@ export default function SessionContextProvider({ children }: Props) {
   const [username, setUsername] = useState<string | null>(null);
   const [fullname, setFullname] = useState<string | null>(null);
 
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+
   function sessionUserVariablesToContext(): void {
     setIsLoggedIn(!!cookies.get("loggedIn"));
     setEmail(cookies.get("email") ?? "");
@@ -65,10 +67,12 @@ export default function SessionContextProvider({ children }: Props) {
         email,
         username,
         fullname,
+        profileImage,
         setIsLoggedIn,
         setEmail,
         setUsername,
         setFullname,
+        setProfileImage,
 
         sessionUserVariablesToContext,
         contextUserVariablesToSession,

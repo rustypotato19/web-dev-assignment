@@ -21,7 +21,8 @@ export default function Header({ sticky }: Props) {
   /* On Mount */
   useEffect(() => {
     if (!checkSession) navigate("/");
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!ctx) {
     return (

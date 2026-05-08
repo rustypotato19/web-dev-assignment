@@ -481,6 +481,7 @@ export default function Signup() {
                       if (canProceedStep2) {
                         if (profilePreview) {
                           localStorage.setItem("profileImage", profilePreview);
+                          ctx.setProfileImage(profilePreview);
                         }
                         setStepCounter((x) => x + 1);
                       }

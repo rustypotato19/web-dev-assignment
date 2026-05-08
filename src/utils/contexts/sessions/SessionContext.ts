@@ -7,10 +7,14 @@ export type SessionContextType = {
     username: string | null;
     fullname: string | null;
 
+    profileImage: string | null;
+
     setIsLoggedIn: (b: boolean) => void;
     setEmail: (s: string) => void;
     setUsername: (s: string) => void;
     setFullname: (s: string) => void;
+
+    setProfileImage: (s: string) => void;
 
     sessionUserVariablesToContext: () => void;
     contextUserVariablesToSession: (cookies: Cookies, override?: {
