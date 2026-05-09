@@ -10,15 +10,15 @@ import Login from "./routes/Login/Login";
 import Signup from "./routes/Signup/Signup";
 
 import Home from "./routes/home/Home";
-import MyError from "./routes/error/Error";
-import SessionContextProvider from "./utils/contexts/sessions/SessionContextProvider";
+import MyError from "./components/error/Error";
+import AuthContextProvider from "./utils/contexts/sessions/AuthContextProvider";
 import Profile from "./routes/profile/Profile";
 import About from "./routes/about/About";
 
 createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
     <StrictMode>
-      <SessionContextProvider>
+      <AuthContextProvider>
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/home" element={<Home />} />
@@ -38,7 +38,7 @@ createRoot(document.getElementById("root")!).render(
             element={<MyError ErrorCode={404} ErrorMessage="Page not found" />}
           />
         </Routes>
-      </SessionContextProvider>
+      </AuthContextProvider>
     </StrictMode>
   </BrowserRouter>,
 );
