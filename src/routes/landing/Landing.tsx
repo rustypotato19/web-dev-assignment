@@ -13,7 +13,7 @@ export default function Landing() {
     if (!auth) return;
 
     // only redirect if we actually KNOW state
-    console.log(auth.isLoggedIn);
+    console.log("is loggedin?", auth.isLoggedIn);
     if ((auth.isLoggedIn && auth.user) || localStorage.getItem("uid")) {
       navigate("/home");
     }

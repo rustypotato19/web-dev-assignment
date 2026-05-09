@@ -80,7 +80,7 @@ function NavModal() {
     ? {
         Home: "/home",
         "My Lists": "/lists",
-        "My Profile": `/profile/${auth.user?.uid}`,
+        "My Profile": `/profile/${auth.user?.username}`,
         About: "/about",
       }
     : {
@@ -92,10 +92,10 @@ function NavModal() {
 
   return (
     <motion.div
-      initial={{ y: -150 }}
+      initial={{ y: -275 }}
       animate={{ y: 0 }}
-      exit={{ y: -150 }}
-      transition={{ duration: 0.6 }}
+      exit={{ y: -275 }}
+      transition={{ duration: 0.8 }}
       className="absolute right-0 top-24 bg-(--local-green) shadow-xl text-white rounded-b-2xl overflow-hidden"
     >
       <div className="flex flex-col w-48 text-center">
@@ -113,7 +113,6 @@ function NavModal() {
           <button
             className="text-lg font-bold py-3 border-t border-(--local-green) hover:bg-(--local-green-dark)"
             onClick={() => {
-              auth.setIsLoggedIn(false);
               auth.logout();
               navigate("/");
             }}

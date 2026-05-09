@@ -1,9 +1,9 @@
 export default function shorthandDateMonthToLong(date: string): string {
     const dm = date.replace(/[/\\]/g, "-").split("-");
 
-    const d = dm[0];
+    const d = dm[2];
     const m = parseInt(dm[1], 10);
-    const y = parseInt(dm[2], 10) || new Date().getFullYear();
+    const y = parseInt(dm[0], 10) || new Date().getFullYear();
 
     const monthIndex: Record<number, string> = {
         1: "January",

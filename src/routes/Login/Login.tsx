@@ -1,8 +1,13 @@
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import Header from "../../components/header/Header";
 import { useNavigate } from "react-router";
 import AuthContext from "../../utils/contexts/sessions/AuthContext";
 import MyError from "../../components/error/Error";
+import {
+  validEmail,
+  validLoginPassword,
+  validUsername,
+} from "../../utils/auth/LogonHandler";
 
 export default function Login() {
   const auth = useContext(AuthContext);
@@ -11,8 +16,36 @@ export default function Login() {
   const [identifier, setIdentifier] = useState(""); // email OR username
   const [password, setPassword] = useState("");
 
+  const [keepSession, setKeepSession] = useState<boolean>(false);
+
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>("OK");
+
+  useEffect(() => {
+    function validateIdentifierAndPass() {
+      const isEmail = identifier.includes("@");
+
+      if (isEmail && !validEmail(identifier)) {
+        setErrorMessage("Invalid email format");
+        setError(true);
+      } else if (!isEmail && !validUsername(identifier)[0]) {
+        setErrorMessage(validUsername(identifier)[1]);
+        setError(true);
+      } else if (
+        !validLoginPassword(password) &&
+        identifier &&
+        password.length > 0
+      ) {
+        setErrorMessage("Password too short");
+        setError(true);
+      } else {
+        setError(false);
+        setErrorMessage("OK");
+      }
+    }
+    validateIdentifierAndPass();
+  }, [identifier, password]);
 
   if (!auth) {
     return (
@@ -25,7 +58,7 @@ export default function Login() {
 
   async function handleLogin() {
     setLoading(true);
-    setError(null);
+    setError(false);
 
     try {
       const isEmail = identifier.includes("@");
@@ -65,19 +98,18 @@ export default function Login() {
         throw new Error("Failed to load user");
       }
 
-      // =========================
-      // AUTH STATE UPDATE (NEW MODEL)
-      // =========================
       auth?.setUser(userData);
-      auth?.setIsLoggedIn(true);
 
-      console.log(auth?.isLoggedIn);
-      console.log(auth?.user);
+      console.log("User logged in?", auth?.isLoggedIn);
+      console.log("Context user object?", auth?.user);
+
+      if (keepSession) localStorage.setItem("uid", userData.uid);
 
       navigate("/home");
     } catch (err) {
       console.error(err);
-      setError("Login failed. Check credentials.");
+      setError(true);
+      setErrorMessage("Login failed. Check credentials.");
     } finally {
       setLoading(false);
     }
@@ -118,13 +150,25 @@ export default function Login() {
           </div>
 
           {/* ERROR */}
-          {error && <p className="text-red-600 text-sm">{error}</p>}
+          <p className={`${error ? "text-red-600" : "text-white"} text-sm`}>
+            {errorMessage}
+          </p>
+
+          <div className="flex flex-row gap-2">
+            <input
+              type="checkbox"
+              checked={keepSession}
+              onChange={() => setKeepSession((x) => !x)}
+              className="cursor-pointer"
+            />
+            <p>Keep me signed in</p>
+          </div>
 
           {/* BUTTON */}
           <button
             onClick={handleLogin}
             disabled={!identifier || !password || loading}
-            className="text-2xl font-bold text-white bg-(--local-green) py-3 px-6 rounded-xl shadow-xl hover:scale-105 transition-all disabled:opacity-50"
+            className="text-2xl font-bold text-white bg-(--local-green) py-3 px-6 rounded-xl shadow-xl hover:scale-105 transition-all disabled:opacity-50 cursor-pointer"
           >
             {loading ? "Signing in..." : "Sign In"}
           </button>

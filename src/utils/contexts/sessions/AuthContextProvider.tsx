@@ -7,7 +7,8 @@ type Props = {
 
 export default function AuthContextProvider({ children }: Props) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+
+  const isLoggedIn = !!user;
 
   // =========================
   // HYDRATE FROM LOCALSTORAGE
@@ -19,16 +20,15 @@ export default function AuthContextProvider({ children }: Props) {
 
     const uid = Number(storedUid);
 
-    fetch(`http://localhost:9003/api/users/id/${uid}`)
+    fetch(`http://localhost:9003/api/users/${uid}`)
       .then((res) => res.json())
       .then((data) => {
-        if (!data?.user) {
+        if (!data?.uid) {
           logout();
           return;
         }
 
-        setUser(data.user);
-        setIsLoggedIn(true);
+        setUser(data);
       })
       .catch((err) => {
         console.error("Failed to hydrate user:", err);
@@ -42,8 +42,6 @@ export default function AuthContextProvider({ children }: Props) {
   useEffect(() => {
     if (user?.uid) {
       localStorage.setItem("uid", String(user.uid));
-    } else {
-      localStorage.removeItem("uid");
     }
   }, [user]);
 
@@ -52,7 +50,6 @@ export default function AuthContextProvider({ children }: Props) {
   // =========================
   function logout() {
     setUser(null);
-    setIsLoggedIn(false);
     localStorage.removeItem("uid");
   }
 
@@ -66,7 +63,6 @@ export default function AuthContextProvider({ children }: Props) {
         user,
 
         setUser,
-        setIsLoggedIn,
 
         logout,
       }}

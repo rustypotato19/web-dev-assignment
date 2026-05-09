@@ -16,11 +16,8 @@ export type AuthContextType = {
     user: AuthUser | null;
 
     setUser: (user: AuthUser | null) => void;
-    setIsLoggedIn: (b: boolean) => void;
 
-    /**
-     * logs user out + clears state
-     */
+
     logout: () => void;
 };
 

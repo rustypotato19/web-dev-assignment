@@ -2,7 +2,7 @@ import Header from "../../components/header/Header";
 import AuthContext from "../../utils/contexts/sessions/AuthContext";
 import MyError from "../../components/error/Error";
 import { useParams } from "react-router";
-import { CalendarDays, Users, UserRound } from "lucide-react";
+import { CalendarDays, Users, UserRound, Plus } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
 
 /* ================= TYPES ================= */
@@ -44,6 +44,11 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  /* ================= MODAL STATE (SIMPLIFIED) ================= */
+  const [activeList, setActiveList] = useState<List | null>(null);
+
+  const listModalOpen = activeList !== null;
+
   /* ================= FETCH ================= */
 
   useEffect(() => {
@@ -54,29 +59,25 @@ export default function Profile() {
         setLoading(true);
 
         const userRes = await fetch(
-          `https://webdev.aboutkonrad.com/api/users/username/${username}`,
+          `http://localhost:9003/api/users/username/${username}`,
         );
 
         const userData = await userRes.json();
 
-        if (!userRes.ok || userData.status !== 200) {
+        if (!userData.uid) {
           throw new Error(userData.error || "Failed to load user");
         }
 
-        const fetchedUser: User = userData.user;
+        const fetchedUser: User = userData;
         setUser(fetchedUser);
 
         const listRes = await fetch(
-          `https://webdev.aboutkonrad.com/api/lists/user/${fetchedUser.uid}`,
+          `http://localhost:9003/api/lists/user/${fetchedUser.uid}`,
         );
 
         const listData = await listRes.json();
 
-        if (!listRes.ok || listData.status !== 200) {
-          throw new Error(listData.error || "Failed to load lists");
-        }
-
-        setLists(listData.lists || []);
+        setLists(listData || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
@@ -114,34 +115,25 @@ export default function Profile() {
     return <MyError ErrorCode={404} ErrorMessage={error || "User not found"} />;
   }
 
-  /* ================= VIEW SWITCH ================= */
+  /* ================= VIEW ================= */
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header sticky />
 
-      {isOwnProfile ? (
-        <MyProfileView user={user} lists={lists} />
-      ) : (
-        <UserProfileView user={user} lists={lists} />
-      )}
+      <ProfileLayout
+        user={user}
+        lists={lists}
+        isOwn={isOwnProfile || false}
+        activeList={activeList}
+        setActiveList={setActiveList}
+        listModalOpen={listModalOpen}
+      />
     </div>
   );
 }
 
-/* ================= MY PROFILE ================= */
-
-function MyProfileView({ user, lists }: { user: User; lists: List[] }) {
-  return <ProfileLayout user={user} lists={lists} isOwn />;
-}
-
-/* ================= OTHER USER PROFILE ================= */
-
-function UserProfileView({ user, lists }: { user: User; lists: List[] }) {
-  return <ProfileLayout user={user} lists={lists} isOwn={false} />;
-}
-
-/* ================= SHARED LAYOUT ================= */
+/* ================= LAYOUT ================= */
 
 function ProfileLayout({
   user,
@@ -151,6 +143,9 @@ function ProfileLayout({
   user: User;
   lists: List[];
   isOwn: boolean;
+  activeList: List | null;
+  setActiveList: (l: List | null) => void;
+  listModalOpen: boolean;
 }) {
   return (
     <>
@@ -169,11 +164,13 @@ function ProfileLayout({
           </div>
 
           <div className="flex flex-col gap-3">
-            <h1 className="text-4xl font-bold">{user.fullname}</h1>
+            <h1 className="text-4xl font-bold flex gap-2">
+              {user.fullname} {isOwn && <span className="text-sm">(ME!)</span>}
+            </h1>
             <p className="text-lg opacity-90">@{user.username}</p>
 
             <div className="flex gap-4 mt-2">
-              <Stat label="Friends" value={user.friends?.length ?? 0} />
+              <Stat label="Friends" value={0} />
               <Stat label="Lists" value={lists.length} />
             </div>
           </div>
@@ -205,7 +202,21 @@ function ProfileLayout({
             <h2 className="text-2xl font-bold text-(--local-green-dark)">
               {isOwn ? "Your Lists" : "Lists"}
             </h2>
-            <p className="text-sm text-gray-500">{lists.length} total</p>
+
+            <div className="flex items-center justify-center w-fit gap-4">
+              <p className="text-sm text-gray-500">{lists.length} total</p>
+              {isOwn && (
+                <button
+                  onClick={(e) => {
+                    console.log(e);
+                  }}
+                  className="flex items-center gap-1 text-sm px-3 py-1 rounded bg-(--local-green) text-white hover:bg-(--local-green-light) cursor-pointer"
+                >
+                  <Plus size={14} />
+                  New List
+                </button>
+              )}
+            </div>
           </div>
 
           {lists.length === 0 ? (
@@ -215,7 +226,7 @@ function ProfileLayout({
               {lists.map((list) => (
                 <div
                   key={list.listid}
-                  className="border rounded-2xl p-5 hover:shadow-md transition"
+                  className="border rounded-2xl p-5 hover:shadow-md transition relative"
                 >
                   <h3 className="font-bold text-lg">{list.name}</h3>
                   <p className="text-gray-600 text-sm mt-1">
@@ -236,7 +247,7 @@ function ProfileLayout({
   );
 }
 
-/* ================= SMALL UI PIECE ================= */
+/* ================= STAT ================= */
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
