@@ -5,6 +5,8 @@ import MyError, { ContextInitError } from "../../components/error/Error";
 import shorthandDateMonthToLong from "../../utils/helpers/DateTime";
 import { PlusCircle, CircleUserRound, Trash2, Lock } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { fetchUserByUid } from "../../utils/db/Db";
+import type { List } from "../../utils/types/Types";
 
 /* ================= TYPES ================= */
 
@@ -24,11 +26,6 @@ type Friend = {
   close: boolean;
   img?: string;
   email: string;
-};
-
-type List = {
-  id: string;
-  name: string;
 };
 
 type DeleteModalProps = {
@@ -71,15 +68,9 @@ export default function Home() {
             return;
           }
 
-          const userRes = await fetch(
-            `http://localhost:9003/api/users/${encodeURIComponent(storedUid)}`,
-          );
+          auth.setUser(await fetchUserByUid(Number(storedUid)));
 
-          const userData = await userRes.json();
-
-          auth.setUser(userData);
-
-          currentUser = userData;
+          currentUser = auth.user;
         }
 
         if (!currentUser) return;
@@ -105,11 +96,11 @@ export default function Home() {
         const friendsData = await friendsRes.json();
         const listsData = await listsRes.json();
 
-        /* ================= FIX: NORMALISE IDS ================= */
+        /* ================= NORMALISE IDS ================= */
         setEvents([
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...(userEventsData || []).map((e: any) => ({
-            id: e.eventid, // FIX HERE
+            id: e.eventid,
             uid: e.uid,
             name: e.name,
             date: e.date,
@@ -119,7 +110,7 @@ export default function Home() {
           })),
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...(fixedEventsData || []).map((e: any) => ({
-            id: e.eventid, // FIX HERE
+            id: e.eventid,
             name: e.name,
             date: e.date,
             created: e.created,
@@ -129,7 +120,7 @@ export default function Home() {
         ]);
 
         setFriends(friendsData.friends || []);
-        setLists(listsData.lists || []);
+        setLists(listsData || []);
       } catch (err) {
         console.error(err);
       } finally {
@@ -158,9 +149,7 @@ export default function Home() {
   /* ================= AUTH ================= */
 
   if (!auth) {
-    return (
-      <ContextInitError />
-    );
+    return <ContextInitError />;
   }
 
   if (loading) {
@@ -323,12 +312,17 @@ export default function Home() {
                   </p>
                 ) : (
                   lists.map((l) => (
-                    <div
-                      key={l.id}
-                      className="p-2 hover:bg-gray-100 rounded-lg"
+                    // create a panel item for each list with name and description
+                    <a
+                      href={`/list/${l.listid}`}
+                      key={l.listid}
+                      className="flex flex-col gap-1 p-2 border rounded-lg hover:bg-gray-100 cursor-pointer"
                     >
-                      {l.name}
-                    </div>
+                      <p className="font-medium">{l.name}</p>
+                      <p className="text-sm text-gray-400">
+                        {l.description || "No description provided"}
+                      </p>
+                    </a>
                   ))
                 )}
               </Panel>

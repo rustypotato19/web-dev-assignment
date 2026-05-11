@@ -15,6 +15,7 @@ import AuthContextProvider from "./utils/contexts/sessions/AuthContextProvider";
 import Profile from "./routes/profile/Profile";
 import About from "./routes/about/About";
 import Lists from "./routes/Lists/Lists";
+import List from "./routes/Lists/List/List";
 
 createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
@@ -32,6 +33,8 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/profile/**/*" element={<Profile />} />
 
           <Route path="/lists/:username?" element={<Lists />} />
+
+          <Route path="/list/:listid" element={<List />} />
 
           <Route path="/about" element={<About />} />
           <Route path="/about/:anchor" element={<About />} />

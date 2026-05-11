@@ -8,6 +8,7 @@ import {
   validLoginPassword,
   validUsername,
 } from "../../utils/auth/LogonHandler";
+import { fetchUserByUid } from "../../utils/db/Db";
 
 export default function Login() {
   const auth = useContext(AuthContext);
@@ -15,8 +16,6 @@ export default function Login() {
 
   const [identifier, setIdentifier] = useState(""); // email OR username
   const [password, setPassword] = useState("");
-
-  const [keepSession, setKeepSession] = useState<boolean>(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<boolean>(false);
@@ -85,25 +84,12 @@ export default function Login() {
         throw new Error("Invalid credentials");
       }
 
-      // =========================
-      // FETCH FULL USER (DB TRUTH)
-      // =========================
-      const userRes = await fetch(
-        `http://localhost:9003/api/users/${data.user.uid}`,
-      );
-
-      const userData = await userRes.json();
-
-      if (!userData.uid) {
-        throw new Error("Failed to load user");
-      }
-
-      auth?.setUser(userData);
+      auth?.setUser(await fetchUserByUid(data.user.uid));
 
       console.log("User logged in?", auth?.isLoggedIn);
       console.log("Context user object?", auth?.user);
 
-      if (keepSession) localStorage.setItem("uid", userData.uid);
+      localStorage.setItem("uid", data.user.uid);
 
       navigate("/home");
     } catch (err) {
@@ -153,16 +139,6 @@ export default function Login() {
           <p className={`${error ? "text-red-600" : "text-white"} text-sm`}>
             {errorMessage}
           </p>
-
-          <div className="flex flex-row gap-2">
-            <input
-              type="checkbox"
-              checked={keepSession}
-              onChange={() => setKeepSession((x) => !x)}
-              className="cursor-pointer"
-            />
-            <p>Keep me signed in</p>
-          </div>
 
           {/* BUTTON */}
           <button

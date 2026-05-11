@@ -2,7 +2,6 @@ import { useContext, useEffect, useState } from "react";
 import Header from "../../components/header/Header";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  validateServerConnection,
   validDob,
   validEmail,
   validFullName,
@@ -152,8 +151,6 @@ export default function Signup() {
   const passwordValid =
     hasLower && hasUpper && hasNumber && hasSpecial && hasMinLength;
 
-  const [keepSession, setKeepSession] = useState<boolean>(false);
-
   // =========================
   // STEP VALIDATION
   // =========================
@@ -182,17 +179,6 @@ export default function Signup() {
   async function onAccountCreate() {
     setLoading(true);
 
-    const connection = await validateServerConnection();
-    if (!connection) {
-      setLoading(false);
-      return (
-        <MyError
-          ErrorCode={1003}
-          ErrorMessage="Server connection failed please try again later"
-        />
-      );
-    }
-
     try {
       const res = await fetch("http://localhost:9003/api/auth/signup", {
         method: "POST",
@@ -218,9 +204,8 @@ export default function Signup() {
       const userData = await userRes.json();
 
       ctx?.setUser(userData);
-      if (keepSession) {
-        localStorage.setItem("uid", data.uid);
-      }
+
+      localStorage.setItem("uid", data.uid);
 
       navigate("/home");
     } catch {
@@ -665,15 +650,6 @@ export default function Signup() {
                       At least 8 characters
                     </li>
                   </ul>
-                </div>
-
-                <div className="flex flex-row gap-2">
-                  <input
-                    type="checkbox"
-                    checked={keepSession}
-                    onChange={() => setKeepSession((x) => !x)}
-                  />
-                  <p>Keep me signed in</p>
                 </div>
 
                 {/* Create Account Button */}
