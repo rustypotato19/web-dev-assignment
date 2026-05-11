@@ -218,7 +218,6 @@ export default function Signup() {
       const userData = await userRes.json();
 
       ctx?.setUser(userData);
-      ctx?.setIsLoggedIn(true);
       if (keepSession) {
         localStorage.setItem("uid", data.uid);
       }

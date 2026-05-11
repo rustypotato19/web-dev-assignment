@@ -14,6 +14,7 @@ import MyError from "./components/error/Error";
 import AuthContextProvider from "./utils/contexts/sessions/AuthContextProvider";
 import Profile from "./routes/profile/Profile";
 import About from "./routes/about/About";
+import Lists from "./routes/Lists/Lists";
 
 createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
@@ -26,12 +27,14 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
-          <Route path="profile" element={<Profile />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/profile/:username" element={<Profile />} />
           <Route path="/profile/**/*" element={<Profile />} />
 
-          <Route path="about" element={<About />} />
-          <Route path="about/:anchor" element={<About />} />
+          <Route path="/lists/:username?" element={<Lists />} />
+
+          <Route path="/about" element={<About />} />
+          <Route path="/about/:anchor" element={<About />} />
 
           <Route
             path="*"

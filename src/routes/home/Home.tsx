@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import Header from "../../components/header/Header";
 import AuthContext from "../../utils/contexts/sessions/AuthContext";
-import MyError from "../../components/error/Error";
+import MyError, { ContextInitError } from "../../components/error/Error";
 import shorthandDateMonthToLong from "../../utils/helpers/DateTime";
 import { PlusCircle, CircleUserRound, Trash2, Lock } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -159,10 +159,7 @@ export default function Home() {
 
   if (!auth) {
     return (
-      <MyError
-        ErrorCode={1002}
-        ErrorMessage="Auth context failed to initialise"
-      />
+      <ContextInitError />
     );
   }
 

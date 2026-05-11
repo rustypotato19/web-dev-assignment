@@ -44,3 +44,47 @@ export default function MyError({ ErrorCode, ErrorMessage }: Props) {
     </div>
   );
 }
+
+export function Error404() {
+  return <MyError ErrorCode={404} ErrorMessage="Page not found." />;
+}
+
+export function Error500() {
+  return <MyError ErrorCode={500} ErrorMessage="Internal server error." />;
+}
+
+export function Error403() {
+  return (
+    <MyError
+      ErrorCode={403}
+      ErrorMessage="Forbidden. You don't have permission to access this page."
+    />
+  );
+}
+
+export function Error401() {
+  return (
+    <MyError
+      ErrorCode={401}
+      ErrorMessage="Unauthorized. Please log in to access this page."
+    />
+  );
+}
+
+export function Error400() {
+  return (
+    <MyError
+      ErrorCode={400}
+      ErrorMessage="Bad Request. The server could not understand the request."
+    />
+  );
+}
+
+export function ContextInitError() {
+  return (
+    <MyError
+      ErrorCode={1002}
+      ErrorMessage="Auth context failed to initialise."
+    />
+  );
+}

@@ -3,28 +3,53 @@ import { ChevronDown } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import AuthContext from "../../utils/contexts/sessions/AuthContext";
-import MyError from "../error/Error";
+import { ContextInitError } from "../error/Error";
 
-type Props = {
-  sticky?: boolean;
-};
-
-export default function Header({ sticky }: Props) {
+export default function Header({ sticky }: { sticky?: boolean }) {
   const auth = useContext(AuthContext);
 
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
+    //
+    // This is a permanent fallback to, once per mount, try set the logged in user
+    // into context if they have a valid session, but the context is not set
+    // for some reason (e.g. page refresh)
+    //
+
     if (!auth) return;
-  }, [auth]);
+
+    if (!auth.isLoggedIn && localStorage.getItem("uid")) {
+      const storedUid = localStorage.getItem("uid");
+
+      const result = fetch(`http://localhost:9003/api/users/${storedUid}`);
+
+      const handleResult = async () => {
+        try {
+          const res = await result;
+          if (!res.ok) {
+            throw new Error(`Failed to fetch user data: ${res.statusText}`);
+          }
+          const data = await res.json();
+
+          if (!data?.uid) {
+            throw new Error("Invalid user data");
+          }
+
+          auth.setUser(data);
+          console.log("[HEADER] Hydrated user from localStorage:", data);
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        }
+      };
+
+      handleResult();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!auth) {
-    return (
-      <MyError
-        ErrorCode={1002}
-        ErrorMessage="Auth context failed to initialise."
-      />
-    );
+    return <ContextInitError />;
   }
 
   return (
@@ -68,12 +93,7 @@ function NavModal() {
   const navigate = useNavigate();
 
   if (!auth) {
-    return (
-      <MyError
-        ErrorCode={1002}
-        ErrorMessage="Auth context failed to initialise."
-      />
-    );
+    return <ContextInitError />;
   }
 
   const navItems = auth.isLoggedIn
@@ -96,14 +116,14 @@ function NavModal() {
       animate={{ y: 0 }}
       exit={{ y: -275 }}
       transition={{ duration: 0.8 }}
-      className="absolute right-0 top-24 bg-(--local-green) shadow-xl text-white rounded-b-2xl overflow-hidden"
+      className="absolute right-0 top-24 bg-(--local-green) shadow-xl text-white rounded-b-2xl overflow-hidden border-2 border-(--local-green-dark)"
     >
       <div className="flex flex-col w-48 text-center">
         {Object.entries(navItems).map(([label, href]) => (
           <a
             key={label}
             href={href}
-            className="text-lg font-bold py-3 border-y border-(--local-green) hover:bg-(--local-green-dark) transition-all"
+            className="text-lg font-bold py-3 border-y border-(--local-green-dark) hover:bg-(--local-green-dark) transition-all"
           >
             {label}
           </a>
@@ -111,7 +131,7 @@ function NavModal() {
 
         {auth.isLoggedIn && (
           <button
-            className="text-lg font-bold py-3 border-t border-(--local-green) hover:bg-(--local-green-dark)"
+            className="text-lg font-bold py-3 border-t border-(--local-green-dark) hover:bg-(--local-green-dark)"
             onClick={() => {
               auth.logout();
               navigate("/");
