@@ -3,7 +3,15 @@ import Header from "../../components/header/Header";
 import AuthContext from "../../utils/contexts/sessions/AuthContext";
 import MyError, { ContextInitError } from "../../components/error/Error";
 import shorthandDateMonthToLong from "../../utils/helpers/DateTime";
-import { PlusCircle, CircleUserRound, Trash2, Lock } from "lucide-react";
+import {
+  PlusCircle,
+  CircleUserRound,
+  Trash2,
+  Lock,
+  Search,
+  UserPlus,
+  Check,
+} from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { fetchUserByUid } from "../../utils/db/Db";
 import type { List } from "../../utils/types/Types";
@@ -23,9 +31,15 @@ type EventType = {
 type Friend = {
   name: string;
   username: string;
-  close: boolean;
-  img?: string;
+  profile_image?: string;
   email: string;
+};
+
+type SearchUser = {
+  uid: number;
+  username: string;
+  fullname: string;
+  profile_image?: string;
 };
 
 type DeleteModalProps = {
@@ -33,6 +47,15 @@ type DeleteModalProps = {
   onCancel: () => void;
   onConfirm: () => void;
   itemName?: string;
+};
+
+type ApiEvent = {
+  eventid: string;
+  uid?: number;
+  name: string;
+  date: string;
+  created: string;
+  updated: string;
 };
 
 /* ================= MAIN ================= */
@@ -51,6 +74,14 @@ export default function Home() {
   const [selectedDeleteEvent, setSelectedDeleteEvent] =
     useState<EventType | null>(null);
 
+  /* ================= FRIEND SEARCH ================= */
+
+  const [search, setSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [addingFriend, setAddingFriend] = useState<number | null>(null);
+  const [addedFriends, setAddedFriends] = useState<number[]>([]);
+
   /* ================= LOAD DATA ================= */
 
   useEffect(() => {
@@ -68,9 +99,11 @@ export default function Home() {
             return;
           }
 
-          auth.setUser(await fetchUserByUid(Number(storedUid)));
+          const fetchedUser = await fetchUserByUid(Number(storedUid));
 
-          currentUser = auth.user;
+          auth.setUser(fetchedUser);
+
+          currentUser = fetchedUser;
         }
 
         if (!currentUser) return;
@@ -96,10 +129,8 @@ export default function Home() {
         const friendsData = await friendsRes.json();
         const listsData = await listsRes.json();
 
-        /* ================= NORMALISE IDS ================= */
         setEvents([
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ...(userEventsData || []).map((e: any) => ({
+          ...(userEventsData || []).map((e: ApiEvent) => ({
             id: e.eventid,
             uid: e.uid,
             name: e.name,
@@ -108,8 +139,8 @@ export default function Home() {
             updated: e.updated,
             editable: true,
           })),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ...(fixedEventsData || []).map((e: any) => ({
+
+          ...(fixedEventsData || []).map((e: ApiEvent) => ({
             id: e.eventid,
             name: e.name,
             date: e.date,
@@ -118,6 +149,11 @@ export default function Home() {
             editable: false,
           })),
         ]);
+
+        // strip past events from events list
+        setEvents((prev) =>
+          prev.filter((e) => new Date(e.date).getTime() >= Date.now()),
+        );
 
         setFriends(friendsData.friends || []);
         setLists(listsData || []);
@@ -130,6 +166,41 @@ export default function Home() {
 
     init();
   }, [auth]);
+
+  /* ================= USER SEARCH ================= */
+
+  useEffect(() => {
+    async function searchUsers() {
+      if (!search.trim()) {
+        setSearchResults([]);
+        return;
+      }
+
+      try {
+        setSearchLoading(true);
+
+        const res = await fetch(
+          `http://localhost:9003/api/users/search/${encodeURIComponent(
+            search,
+          )}`,
+        );
+
+        const data = await res.json();
+
+        setSearchResults(data || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setSearchLoading(false);
+      }
+    }
+
+    const timeout = setTimeout(() => {
+      searchUsers();
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [search]);
 
   /* ================= GROUP EVENTS ================= */
 
@@ -166,7 +237,7 @@ export default function Home() {
 
   const user = auth.user;
 
-  /* ================= DELETE FIX ================= */
+  /* ================= DELETE EVENT ================= */
 
   async function deleteEvent(id: string) {
     try {
@@ -179,6 +250,11 @@ export default function Home() {
 
       setEvents((prev) => prev.filter((e) => e.id !== id || !e.editable));
 
+      // strip past events from events list
+      setEvents((prev) =>
+        prev.filter((e) => new Date(e.date).getTime() >= Date.now()),
+      );
+
       setDeleteModalOpen(false);
       setSelectedDeleteEvent(null);
     } catch (err) {
@@ -186,7 +262,7 @@ export default function Home() {
     }
   }
 
-  /* ================= SAVE ================= */
+  /* ================= SAVE EVENT ================= */
 
   async function saveEvent(name: string, date: string) {
     const res = await fetch(
@@ -195,7 +271,9 @@ export default function Home() {
       )}`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ name, date }),
       },
     );
@@ -217,7 +295,60 @@ export default function Home() {
       },
     ]);
 
+    // Order events by date after adding new event
+    setEvents((prev) =>
+      [...prev].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+      ),
+    );
+
+    // strip past events from ordered events list
+    setEvents((prev) =>
+      prev.filter((e) => new Date(e.date).getTime() >= Date.now()),
+    );
+
     setShowModal(false);
+  }
+
+  /* ================= ADD FRIEND ================= */
+
+  async function addFriend(friendUid: number) {
+    try {
+      setAddingFriend(friendUid);
+
+      const res = await fetch(`http://localhost:9003/api/friends/add`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_uid: user.uid,
+          friend_uid: friendUid,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) return;
+
+      setAddedFriends((prev) => [...prev, friendUid]);
+
+      // Optimistically fetch the friend's data and add them to the friends list immediately
+      const newFriendData = await fetchUserByUid(friendUid);
+      setFriends((prev) => [
+        ...prev,
+        {
+          name: newFriendData.fullname,
+          username: newFriendData.username,
+          profile_image: newFriendData.profile_image,
+          email: newFriendData.email,
+        } as Friend,
+      ]);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setAddingFriend(null);
+    }
   }
 
   /* ================= UI ================= */
@@ -232,7 +363,7 @@ export default function Home() {
             {user.profile_image ? (
               <img
                 src={user.profile_image}
-                className="w-10 h-10 rounded-full object-cover"
+                className="w-16 h-16 rounded-full object-cover border border-(--local-green-dark)"
               />
             ) : (
               <CircleUserRound className="w-10 h-10 text-gray-400" />
@@ -253,7 +384,7 @@ export default function Home() {
                 />
               </div>
 
-              <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
+              <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 mb-2">
                 {groupedEvents.length === 0 ? (
                   <p className="text-gray-400 text-sm">No items to show</p>
                 ) : (
@@ -263,6 +394,7 @@ export default function Home() {
                         <p className="font-bold">
                           {shorthandDateMonthToLong(date)}
                         </p>
+
                         <div className="flex-1 h-0.75 ml-3 bg-black/40 rounded-full" />
                       </div>
 
@@ -295,6 +427,91 @@ export default function Home() {
 
             {/* RIGHT SIDE */}
             <div className="lg:col-span-2 grid gap-4 content-start overflow-y-auto min-h-0">
+              {/* SEARCH USERS */}
+              <div className="bg-white rounded-2xl shadow border">
+                <div className="p-4 border-b">
+                  <h2 className="font-bold text-lg">Add Friends</h2>
+
+                  <div className="relative mt-3">
+                    <Search
+                      size={18}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                    />
+
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search by username..."
+                      className="w-full border rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-(--local-green-light)"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col pt-3 px-3 mb-5 gap-2 min-h-fit max-h-80 overflow-y-auto">
+                  {search === "" ? (
+                    <p className="text-sm text-gray-400 my-auto">
+                      Search results will show here
+                    </p>
+                  ) : searchLoading ? (
+                    <p className="text-sm text-gray-400">Searching...</p>
+                  ) : search.trim() && searchResults.length === 0 ? (
+                    <p className="text-sm text-gray-400">No users found</p>
+                  ) : (
+                    searchResults
+                      .filter((u) => u.uid !== user.uid)
+                      .map((u) => {
+                        const alreadyFriend =
+                          friends.some((f) => f.username === u.username) ||
+                          addedFriends.includes(u.uid);
+
+                        return (
+                          <div
+                            key={u.uid}
+                            className="flex items-center justify-between border rounded-xl p-3 hover:bg-gray-50 transition-all"
+                          >
+                            <div className="flex items-center gap-3">
+                              {u.profile_image ? (
+                                <img
+                                  src={u.profile_image}
+                                  className="w-12 h-12 rounded-full object-cover"
+                                />
+                              ) : (
+                                <CircleUserRound className="w-12 h-12 text-gray-400" />
+                              )}
+
+                              <div>
+                                <p className="font-semibold">{u.fullname}</p>
+
+                                <p className="text-sm text-gray-500">
+                                  @{u.username}
+                                </p>
+                              </div>
+                            </div>
+
+                            {alreadyFriend ? (
+                              <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
+                                <Check size={18} />
+                                Added
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => addFriend(u.uid)}
+                                disabled={addingFriend === u.uid}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-(--local-green) text-white hover:bg-(--local-green-light) transition-all cursor-pointer disabled:opacity-50"
+                              >
+                                <UserPlus size={16} />
+                                Add Friend
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })
+                  )}
+                </div>
+              </div>
+
+              {/* FRIENDS */}
               <Panel title="All Friends">
                 {friends.length === 0 ? (
                   <p className="text-gray-400 text-sm">
@@ -305,6 +522,7 @@ export default function Home() {
                 )}
               </Panel>
 
+              {/* LISTS */}
               <Panel title="My Lists">
                 {lists.length === 0 ? (
                   <p className="text-gray-400 text-sm">
@@ -312,13 +530,13 @@ export default function Home() {
                   </p>
                 ) : (
                   lists.map((l) => (
-                    // create a panel item for each list with name and description
                     <a
                       href={`/list/${l.listid}`}
                       key={l.listid}
-                      className="flex flex-col gap-1 p-2 border rounded-lg hover:bg-gray-100 cursor-pointer"
+                      className="flex flex-col gap-1 p-2 border rounded-lg hover:bg-neutral-200 cursor-pointer transition"
                     >
                       <p className="font-medium">{l.name}</p>
+
                       <p className="text-sm text-gray-400">
                         {l.description || "No description provided"}
                       </p>
@@ -347,6 +565,7 @@ export default function Home() {
         }}
         onConfirm={() => {
           if (!selectedDeleteEvent) return;
+
           deleteEvent(selectedDeleteEvent.id);
         }}
       />
@@ -366,6 +585,7 @@ function Panel({
   return (
     <div className="bg-white rounded-2xl shadow border">
       <div className="p-3 font-semibold">{title}</div>
+
       <div className="flex gap-3 overflow-x-auto p-3">{children}</div>
     </div>
   );
@@ -375,18 +595,25 @@ function Panel({
 
 function FriendItem({ friend }: { friend: Friend }) {
   return (
-    <div className="flex items-center gap-3 p-2">
-      {friend.img ? (
-        <img src={friend.img} className="w-10 h-10 rounded-full object-cover" />
+    <a
+      href={`/profile/${friend.username}`}
+      className="flex items-center gap-3 p-2 hover:bg-neutral-200 cursor-pointer transition rounded-lg"
+    >
+      {friend.profile_image ? (
+        <img
+          src={friend.profile_image}
+          className="w-10 h-10 rounded-full object-cover border border-(--local-green-dark)"
+        />
       ) : (
         <CircleUserRound className="w-10 h-10 text-gray-400" />
       )}
 
       <div>
         <p className="text-sm font-medium">{friend.name}</p>
+
         <p className="text-xs text-gray-400">@{friend.username}</p>
       </div>
-    </div>
+    </a>
   );
 }
 
@@ -414,9 +641,9 @@ function EventModal({
 
       <motion.div
         className="fixed inset-0 flex items-center justify-center z-50"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0 }}
+        initial={{ opacity: 0, y: -20, scale: 0.8 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 20, scale: 0.8 }}
       >
         <div
           className="bg-white p-6 rounded-2xl shadow w-full max-w-sm flex flex-col gap-4"
@@ -430,22 +657,39 @@ function EventModal({
             onChange={(e) => setName(e.target.value)}
             placeholder="Event name"
           />
-
           <input
             type="date"
             className="border p-2 rounded"
             onChange={(e) => setDate(e.target.value)}
+            min={new Date().toISOString().split("T")[0]}
           />
 
-          <div className="flex justify-end gap-3">
-            <button onClick={onClose}>Cancel</button>
+          <div className="flex justify-between items-center gap-3">
+            <p className="text-xs text-red-500">
+              {date <= new Date().toISOString().split("T")[0]
+                ? "Please select a future date."
+                : ""}
+            </p>
+            <div className="flex gap-3">
+              <button
+                className="px-4 py-2 rounded cursor-pointer hover:bg-neutral-300 transition-all"
+                onClick={onClose}
+              >
+                Cancel
+              </button>
 
-            <button
-              className="bg-(--local-green) text-white px-4 py-2 rounded"
-              onClick={() => onSave(name, date)}
-            >
-              Save
-            </button>
+              <button
+                className="bg-(--local-green) text-white px-4 py-2 rounded cursor-pointer hover:bg-(--local-green-light) transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium hover:scale-105 disabled:hover:scale-100 disabled:hover:bg-(--local-green)"
+                onClick={() => onSave(name, date)}
+                disabled={
+                  !name.trim() ||
+                  !date ||
+                  date <= new Date().toISOString().split("T")[0]
+                }
+              >
+                Save
+              </button>
+            </div>
           </div>
         </div>
       </motion.div>
@@ -465,7 +709,6 @@ function DeleteConfirmModal({
     <AnimatePresence>
       {open && (
         <>
-          {/* BACKDROP */}
           <motion.div
             className="fixed inset-0 bg-black/40 z-40"
             initial={{ opacity: 0 }}
@@ -474,12 +717,23 @@ function DeleteConfirmModal({
             onClick={onCancel}
           />
 
-          {/* MODAL */}
           <motion.div
             className="fixed inset-0 flex items-center justify-center z-50"
-            initial={{ opacity: 0, scale: 0.95, y: -10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+            initial={{
+              opacity: 0,
+              scale: 0.8,
+              y: -20,
+            }}
+            animate={{
+              opacity: 1,
+              scale: 1,
+              y: 0,
+            }}
+            exit={{
+              opacity: 0,
+              scale: 0.8,
+              y: 20,
+            }}
           >
             <div
               className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-sm flex flex-col gap-4"

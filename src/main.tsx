@@ -16,6 +16,7 @@ import Profile from "./routes/profile/Profile";
 import About from "./routes/about/About";
 import Lists from "./routes/Lists/Lists";
 import List from "./routes/Lists/List/List";
+import Settings from "./routes/settings/Settings";
 
 createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
@@ -31,6 +32,8 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/:username" element={<Profile />} />
           <Route path="/profile/**/*" element={<Profile />} />
+
+          <Route path="/settings" element={<Settings />} />
 
           <Route path="/lists/:username?" element={<Lists />} />
 

@@ -149,7 +149,7 @@ export default function Profile() {
           `http://localhost:9003/api/friends/${fetchId}`,
         );
         const friendsData = await friendsRes.json();
-        setFriends(friendsData || []);
+        setFriends(friendsData.friends || []);
       } catch (err) {
         console.error("Error fetching friends data:", err);
       }
@@ -184,7 +184,7 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header sticky />
+      <Header />
 
       <ProfileLayout
         user={user}
@@ -229,7 +229,7 @@ function ProfileLayout({
       {/* HERO */}
       <div className="w-full bg-linear-to-br from-(--local-green-light)/80 to-(--local-green-dark) text-white">
         <div className="max-w-6xl mx-auto px-6 py-10 flex flex-col lg:flex-row items-center lg:items-end gap-8">
-          <div className="w-50 h-50 rounded-full overflow-hidden border-4 border-white shadow-2xl bg-white flex items-center justify-center">
+          <div className="w-50 h-50 rounded-full overflow-hidden border-4 border-(--local-green-dark) shadow-2xl bg-white flex items-center justify-center">
             {user.profile_image ? (
               <img
                 src={user.profile_image}
@@ -245,6 +245,14 @@ function ProfileLayout({
               {user.fullname} {isOwn && <span className="text-sm">(ME!)</span>}
             </h1>
             <p className="text-lg opacity-90">@{user.username}</p>
+            {isOwn && (
+              <a
+                href="/profile/edit"
+                className="text-white text-xs hover:underline"
+              >
+                Edit Profile
+              </a>
+            )}
 
             <div className="flex gap-4 mt-2">
               <Stat label="Friends" value={friends?.length ?? 0} />
@@ -264,7 +272,9 @@ function ProfileLayout({
 
           <div className="flex items-center gap-3 mt-4 text-gray-700">
             <Users size={20} />
-            <p>{friends?.length ?? 0} friends</p>
+            <p>
+              {friends?.length ?? 0} Friend{friends?.length !== 1 ? "s" : ""}
+            </p>
           </div>
 
           <div className="flex items-center gap-3 mt-4 text-gray-700">
@@ -301,7 +311,7 @@ function ProfileLayout({
               {lists.map((list) => (
                 <div
                   key={list.listid}
-                  className="border rounded-2xl p-5 hover:shadow-md transition relative"
+                  className="border rounded-2xl p-5 relative"
                 >
                   <div className="flex items-start justify-between">
                     <h3 className="font-bold text-lg">{list.name}</h3>
@@ -324,9 +334,17 @@ function ProfileLayout({
                     {list.description || "No description"}
                   </p>
 
-                  <div className="flex items-center gap-2 mt-4 text-sm text-gray-500">
-                    <Users size={16} />
-                    <p>{list.members?.length ?? 0} members</p>
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <Users size={16} />
+                      <p>{list.members?.length ?? 0} members</p>
+                    </div>
+                    <a
+                      href={`/list/${list.listid}`}
+                      className="text-sm text-white bg-(--local-green) px-3 py-1 rounded hover:bg-(--local-green-light) transition-all duration-300 hover:scale-105"
+                    >
+                      Open List
+                    </a>
                   </div>
                 </div>
               ))}

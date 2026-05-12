@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import AuthContext, { type AuthUser } from "./AuthContext";
+import { useNavigate } from "react-router";
 
 type Props = {
   children: React.ReactNode;
@@ -9,6 +10,8 @@ export default function AuthContextProvider({ children }: Props) {
   const [user, setUser] = useState<AuthUser | null>(null);
 
   const isLoggedIn = !!user;
+
+  const navigate = useNavigate();
 
   // =========================
   // HYDRATE FROM LOCALSTORAGE
@@ -34,6 +37,7 @@ export default function AuthContextProvider({ children }: Props) {
         console.error("Failed to hydrate user:", err);
         logout();
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // =========================
@@ -51,6 +55,7 @@ export default function AuthContextProvider({ children }: Props) {
   function logout() {
     setUser(null);
     localStorage.removeItem("uid");
+    navigate("/");
   }
 
   // =========================

@@ -14,7 +14,7 @@ export default function About() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header sticky={true} />
+      <Header />
 
       <div className="max-w-4xl w-full mx-auto px-6 py-10 flex flex-col gap-12">
         {/* ================= MAIN ================= */}
@@ -150,7 +150,7 @@ function ContactSection() {
 
     if (!valid) return;
 
-    // 🔥 Placeholder for backend call
+    // Placeholder for backend call
     console.log({
       to: "rustypotato19@gmail.com",
       name,

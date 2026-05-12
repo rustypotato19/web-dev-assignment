@@ -197,6 +197,25 @@ export default function Signup() {
 
       if (!data.success) throw new Error();
 
+      /* ================= SEND WELCOME EMAIL ================= */
+
+      try {
+        await fetch("http://localhost:9003/api/mail/welcome", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            username,
+          }),
+        });
+      } catch (mailErr) {
+        console.error("Failed to send welcome email:", mailErr);
+      }
+
+      /* ================= LOAD USER ================= */
+
       const userRes = await fetch(
         `http://localhost:9003/api/users/${data.uid}`,
       );

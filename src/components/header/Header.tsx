@@ -1,14 +1,15 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { CircleChevronDown } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
-import { useNavigate } from "react-router";
 import AuthContext from "../../utils/contexts/sessions/AuthContext";
 import { ContextInitError } from "../error/Error";
 
-export default function Header({ sticky }: { sticky?: boolean }) {
+export default function Header() {
   const auth = useContext(AuthContext);
 
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const headerHeight = 96 + 32 + 32; // 96 height, 32 pt, 32 pb
 
   useEffect(() => {
     //
@@ -62,9 +63,7 @@ export default function Header({ sticky }: { sticky?: boolean }) {
   return (
     <>
       <div
-        className={`${
-          sticky && "sticky top-0"
-        } relative w-screen flex items-center justify-between bg-(--local-green) text-white p-8 z-30 shadow-xl`}
+        className={`relative w-screen flex items-center justify-between bg-(--local-green) text-white h-24 p-8 z-30 shadow-xl`}
       >
         <a
           href="/"
@@ -93,16 +92,17 @@ export default function Header({ sticky }: { sticky?: boolean }) {
 
       <div className="z-20">
         <AnimatePresence mode="wait">
-          {menuOpen && <NavModal />}
+          {menuOpen && <NavModal pxOffset={headerHeight} />}
         </AnimatePresence>
       </div>
     </>
   );
 }
 
-function NavModal() {
+function NavModal({ pxOffset }: { pxOffset: number }) {
   const auth = useContext(AuthContext);
-  const navigate = useNavigate();
+
+  const itemHeight = 48;
 
   if (!auth) {
     return <ContextInitError />;
@@ -113,7 +113,9 @@ function NavModal() {
         Home: "/home",
         "My Lists": "/lists",
         "My Profile": `/profile/${auth.user?.username}`,
+        Settings: "/settings",
         About: "/about",
+        Logout: "/logout",
       }
     : {
         Landing: "/",
@@ -122,15 +124,22 @@ function NavModal() {
         About: "/about",
       };
 
+  // +2 for 1px on top and bottom borders
+  //
+  const animationOffset =
+    itemHeight * Object.keys(navItems).length +
+    2 +
+    12 * Object.keys(navItems).length;
+
   return (
     <motion.div
-      initial={{ y: -275 }}
+      initial={{ y: -animationOffset }}
       animate={{ y: 0 }}
-      exit={{ y: -275 }}
+      exit={{ y: -animationOffset }}
       transition={{ duration: 0.8 }}
-      className="absolute right-0 top-26 bg-(--local-green) shadow-xl text-white rounded-b-2xl overflow-hidden border-2 border-(--local-green-dark)"
+      className={`absolute right-0 top-${pxOffset} bg-(--local-green) shadow-xl text-white rounded-b-2xl overflow-hidden border border-(--local-green-dark)`}
     >
-      <div className="flex flex-col w-48 text-center">
+      <div className={`flex flex-col w-40 h-${itemHeight} text-center`}>
         {Object.entries(navItems).map(([label, href]) => (
           <a
             key={label}
@@ -140,18 +149,6 @@ function NavModal() {
             {label}
           </a>
         ))}
-
-        {auth.isLoggedIn && (
-          <button
-            className="text-lg font-bold py-3 border-t border-(--local-green-dark) hover:bg-(--local-green-dark)"
-            onClick={() => {
-              auth.logout();
-              navigate("/");
-            }}
-          >
-            Logout
-          </button>
-        )}
       </div>
     </motion.div>
   );
