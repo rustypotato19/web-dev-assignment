@@ -74,7 +74,7 @@ export default function Signup() {
     async function validateEmail() {
       try {
         const res = await fetch(
-          `http://localhost:9003/api/auth/ver/email/${encodeURIComponent(email)}`,
+          `https://webdev.aboutkonrad.com/api/auth/ver/email/${encodeURIComponent(email)}`,
         );
 
         const data = await res.json();
@@ -106,7 +106,7 @@ export default function Signup() {
     async function validateUsername() {
       try {
         const res = await fetch(
-          `http://localhost:9003/api/auth/ver/username/${encodeURIComponent(currentUsername)}`,
+          `https://webdev.aboutkonrad.com/api/auth/ver/username/${encodeURIComponent(currentUsername)}`,
         );
 
         const data = await res.json();
@@ -180,7 +180,7 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:9003/api/auth/signup", {
+      const res = await fetch("https://webdev.aboutkonrad.com/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -200,7 +200,7 @@ export default function Signup() {
       /* ================= SEND WELCOME EMAIL ================= */
 
       try {
-        await fetch("http://localhost:9003/api/mail/welcome", {
+        await fetch("https://webdev.aboutkonrad.com/api/mail/welcome", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -217,7 +217,7 @@ export default function Signup() {
       /* ================= LOAD USER ================= */
 
       const userRes = await fetch(
-        `http://localhost:9003/api/users/${data.uid}`,
+        `https://webdev.aboutkonrad.com/api/users/${data.uid}`,
       );
 
       const userData = await userRes.json();

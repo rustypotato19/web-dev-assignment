@@ -37,7 +37,7 @@ export default function Profile() {
     if (!ctx || !uid || !name) return;
 
     const res = await fetch(
-      `http://localhost:9003/api/lists/create/${encodeURIComponent(uid)}`,
+      `https://webdev.aboutkonrad.com/api/lists/create/${encodeURIComponent(uid)}`,
       {
         method: "POST",
         headers: {
@@ -74,7 +74,7 @@ export default function Profile() {
     if (!ctx || !listid) return;
 
     const res = await fetch(
-      `http://localhost:9003/api/lists/delete/${encodeURIComponent(listid)}`,
+      `https://webdev.aboutkonrad.com/api/lists/delete/${encodeURIComponent(listid)}`,
       {
         method: "DELETE",
       },
@@ -114,7 +114,7 @@ export default function Profile() {
         setUser(fetchedUser);
 
         const listRes = await fetch(
-          `http://localhost:9003/api/lists/user/${fetchedUser.uid}`,
+          `https://webdev.aboutkonrad.com/api/lists/user/${fetchedUser.uid}`,
         );
 
         const listData = await listRes.json();
@@ -147,7 +147,7 @@ export default function Profile() {
 
       try {
         const friendsRes = await fetch(
-          `http://localhost:9003/api/friends/${fetchId}`,
+          `https://webdev.aboutkonrad.com/api/friends/${fetchId}`,
         );
         const friendsData = await friendsRes.json();
         setFriends(friendsData.friends || []);

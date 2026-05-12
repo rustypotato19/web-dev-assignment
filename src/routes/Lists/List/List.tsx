@@ -74,7 +74,7 @@ export default function List() {
 
         if (!storedUid) return;
 
-        const res = await fetch(`http://localhost:9003/api/users/${storedUid}`);
+        const res = await fetch(`https://webdev.aboutkonrad.com/api/users/${storedUid}`);
 
         if (!res.ok) return;
 
@@ -104,10 +104,10 @@ export default function List() {
       try {
         const [listRes, itemsRes] = await Promise.all([
           fetch(
-            `http://localhost:9003/api/lists/user/list/${encodeURIComponent(listid)}`,
+            `https://webdev.aboutkonrad.com/api/lists/user/list/${encodeURIComponent(listid)}`,
           ),
           fetch(
-            `http://localhost:9003/api/lists/items/${encodeURIComponent(listid)}`,
+            `https://webdev.aboutkonrad.com/api/lists/items/${encodeURIComponent(listid)}`,
           ),
         ]);
 
@@ -151,7 +151,7 @@ export default function List() {
 
     try {
       const res = await fetch(
-        `http://localhost:9003/api/lists/items/create/${listid}`,
+        `https://webdev.aboutkonrad.com/api/lists/items/create/${listid}`,
         {
           method: "POST",
           headers: {
@@ -184,7 +184,7 @@ export default function List() {
 
     try {
       const res = await fetch(
-        `http://localhost:9003/api/lists/items/update/${editingItem.itemid}`,
+        `https://webdev.aboutkonrad.com/api/lists/items/update/${editingItem.itemid}`,
         {
           method: "PUT",
           headers: {
@@ -214,7 +214,7 @@ export default function List() {
 
     try {
       await fetch(
-        `http://localhost:9003/api/lists/items/delete/${editingItem.itemid}`,
+        `https://webdev.aboutkonrad.com/api/lists/items/delete/${editingItem.itemid}`,
         {
           method: "DELETE",
         },
@@ -238,7 +238,7 @@ export default function List() {
 
     try {
       const res = await fetch(
-        `http://localhost:9003/api/lists/update/${list.listid}`,
+        `https://webdev.aboutkonrad.com/api/lists/update/${list.listid}`,
         {
           method: "PUT",
           headers: {
@@ -263,7 +263,7 @@ export default function List() {
     if (!list) return;
 
     try {
-      await fetch(`http://localhost:9003/api/lists/delete/${list.listid}`, {
+      await fetch(`https://webdev.aboutkonrad.com/api/lists/delete/${list.listid}`, {
         method: "DELETE",
       });
 

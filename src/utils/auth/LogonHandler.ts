@@ -87,7 +87,7 @@ export function validDob(dob: Date): [boolean, string] {
 ========================= */
 export async function validateServerConnection(): Promise<boolean> {
     try {
-        const res = await fetch("http://localhost:9003/health");
+        const res = await fetch("https://webdev.aboutkonrad.com/health");
 
         if (!res.ok) return false;
 

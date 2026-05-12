@@ -63,8 +63,8 @@ export default function Login() {
       const isEmail = identifier.includes("@");
 
       const endpoint = isEmail
-        ? "http://localhost:9003/api/auth/login/email"
-        : "http://localhost:9003/api/auth/login/username";
+        ? "https://webdev.aboutkonrad.com/api/auth/login/email"
+        : "https://webdev.aboutkonrad.com/api/auth/login/username";
 
       const res = await fetch(endpoint, {
         method: "POST",

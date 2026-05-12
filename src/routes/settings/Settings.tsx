@@ -65,7 +65,7 @@ export default function Settings() {
           uid = parseInt(storedUid, 10);
         }
 
-        const res = await fetch(`http://localhost:9003/api/users/${uid}`);
+        const res = await fetch(`https://webdev.aboutkonrad.com/api/users/${uid}`);
 
         if (!res.ok) {
           throw new Error("Failed to fetch user");
@@ -143,7 +143,7 @@ export default function Settings() {
 
     try {
       const res = await fetch(
-        `http://localhost:9003/api/users/username/${user.username}`,
+        `https://webdev.aboutkonrad.com/api/users/username/${user.username}`,
         {
           method: "PUT",
           headers: {
@@ -168,7 +168,7 @@ export default function Settings() {
 
     try {
       const res = await fetch(
-        `http://localhost:9003/api/users/fullname/${user.uid}`,
+        `https://webdev.aboutkonrad.com/api/users/fullname/${user.uid}`,
         {
           method: "PUT",
           headers: {
@@ -193,7 +193,7 @@ export default function Settings() {
 
     try {
       const res = await fetch(
-        `http://localhost:9003/api/users/email/${user.uid}`,
+        `https://webdev.aboutkonrad.com/api/users/email/${user.uid}`,
         {
           method: "PUT",
           headers: {
@@ -218,7 +218,7 @@ export default function Settings() {
 
     try {
       const res = await fetch(
-        `http://localhost:9003/api/users/date-of-birth/${user.uid}`,
+        `https://webdev.aboutkonrad.com/api/users/date-of-birth/${user.uid}`,
         {
           method: "PUT",
           headers: {
@@ -243,7 +243,7 @@ export default function Settings() {
 
     try {
       const res = await fetch(
-        `http://localhost:9003/api/users/profile-image/${user.uid}`,
+        `https://webdev.aboutkonrad.com/api/users/profile-image/${user.uid}`,
         {
           method: "PUT",
           headers: {
@@ -267,7 +267,7 @@ export default function Settings() {
     if (!user) return;
 
     try {
-      await fetch(`http://localhost:9003/api/users/password/${user.uid}`, {
+      await fetch(`https://webdev.aboutkonrad.com/api/users/password/${user.uid}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -290,7 +290,7 @@ export default function Settings() {
     if (!user) return;
 
     try {
-      await fetch(`http://localhost:9003/api/users/${user.uid}`, {
+      await fetch(`https://webdev.aboutkonrad.com/api/users/${user.uid}`, {
         method: "DELETE",
       });
 

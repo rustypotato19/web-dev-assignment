@@ -113,14 +113,14 @@ export default function Home() {
         const [userEventsRes, fixedEventsRes, friendsRes, listsRes] =
           await Promise.all([
             fetch(
-              `http://localhost:9003/api/events/user/${encodeURIComponent(uid)}`,
+              `https://webdev.aboutkonrad.com/api/events/user/${encodeURIComponent(uid)}`,
             ),
-            fetch(`http://localhost:9003/api/events/fixed`),
+            fetch(`https://webdev.aboutkonrad.com/api/events/fixed`),
             fetch(
-              `http://localhost:9003/api/friends/${encodeURIComponent(uid)}`,
+              `https://webdev.aboutkonrad.com/api/friends/${encodeURIComponent(uid)}`,
             ),
             fetch(
-              `http://localhost:9003/api/lists/user/${encodeURIComponent(uid)}`,
+              `https://webdev.aboutkonrad.com/api/lists/user/${encodeURIComponent(uid)}`,
             ),
           ]);
 
@@ -180,7 +180,7 @@ export default function Home() {
         setSearchLoading(true);
 
         const res = await fetch(
-          `http://localhost:9003/api/users/search/${encodeURIComponent(
+          `https://webdev.aboutkonrad.com/api/users/search/${encodeURIComponent(
             search,
           )}`,
         );
@@ -242,7 +242,7 @@ export default function Home() {
   async function deleteEvent(id: string) {
     try {
       await fetch(
-        `http://localhost:9003/api/events/user/delete/${encodeURIComponent(id)}`,
+        `https://webdev.aboutkonrad.com/api/events/user/delete/${encodeURIComponent(id)}`,
         {
           method: "DELETE",
         },
@@ -266,7 +266,7 @@ export default function Home() {
 
   async function saveEvent(name: string, date: string) {
     const res = await fetch(
-      `http://localhost:9003/api/events/user/create/${encodeURIComponent(
+      `https://webdev.aboutkonrad.com/api/events/user/create/${encodeURIComponent(
         user.uid,
       )}`,
       {
@@ -316,7 +316,7 @@ export default function Home() {
     try {
       setAddingFriend(friendUid);
 
-      const res = await fetch(`http://localhost:9003/api/friends/add`, {
+      const res = await fetch(`https://webdev.aboutkonrad.com/api/friends/add`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -23,7 +23,7 @@ export default function AuthContextProvider({ children }: Props) {
 
     const uid = Number(storedUid);
 
-    fetch(`http://localhost:9003/api/users/${uid}`)
+    fetch(`https://webdev.aboutkonrad.com/api/users/${uid}`)
       .then((res) => res.json())
       .then((data) => {
         if (!data?.uid) {
