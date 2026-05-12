@@ -64,39 +64,6 @@ export default function About() {
           </div>
         </section>
 
-        {/* ================= COOKIES ================= */}
-        <section id="Cookies" className="flex flex-col gap-4 border-t pt-8">
-          <h2 className="text-2xl font-semibold text-(--local-green-dark)">
-            Cookies & Data Usage
-          </h2>
-
-          <div className="flex flex-col gap-3 text-gray-700 leading-relaxed">
-            <p>
-              This site uses cookies to store login information and improve your
-              experience.
-            </p>
-
-            <p className="font-semibold text-(--local-green-dark)">
-              We do NOT, and vow to never intentionally pass forward data to
-              third parties for monetary compensation or otherwise.
-            </p>
-
-            <p>
-              Interested to find out how cookies work? Read this simple article
-              @{" "}
-              <a
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Opens in a new tab"
-                className="text-blue-700 font-medium hover:text-blue-500 cursor-pointer active:text-blue-900"
-                href="https://medium.com/@hendelRamzy/how-session-and-cookies-works-640fb3f349d1"
-              >
-                Medium.com
-              </a>
-            </p>
-          </div>
-        </section>
-
         {/* ================= Icons ================= */}
         <section id="Cookies" className="flex flex-col gap-4 border-t pt-8">
           <h2 className="text-2xl font-semibold text-(--local-green-dark)">
@@ -145,25 +112,40 @@ function ContactSection() {
 
   const valid = name.trim() && email.trim() && message.trim();
 
-  function handleSubmit() {
+  async function handleSubmit() {
     setTouched(true);
 
     if (!valid) return;
 
-    // Placeholder for backend call
-    console.log({
-      to: "rustypotato19@gmail.com",
-      name,
-      email,
-      message,
-    });
+    try {
+      const res = await fetch("http://localhost:9003/api/mail/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          message,
+        }),
+      });
 
-    setSent(true);
+      const data = await res.json();
 
-    // reset
-    setName("");
-    setEmail("");
-    setMessage("");
+      if (!data.success) {
+        throw new Error(data.error || "Failed to send");
+      }
+
+      setSent(true);
+
+      // reset form
+      setName("");
+      setEmail("");
+      setMessage("");
+    } catch (err) {
+      console.error("Email send failed:", err);
+      alert("Failed to send message. Try again later.");
+    }
   }
 
   return (
