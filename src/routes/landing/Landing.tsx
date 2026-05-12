@@ -12,7 +12,7 @@ export default function Landing() {
   useEffect(() => {
     if (!auth) return;
 
-    // only redirect if we actually KNOW state
+    // redirect if user is logged in
     console.log("is loggedin?", auth.isLoggedIn);
     if ((auth.isLoggedIn && auth.user) || localStorage.getItem("uid")) {
       navigate("/home");

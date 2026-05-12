@@ -138,7 +138,6 @@ function ContactSection() {
 
       setSent(true);
 
-      // reset form
       setName("");
       setEmail("");
       setMessage("");

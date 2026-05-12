@@ -151,7 +151,7 @@ export default function Lists() {
     <div className="min-h-screen bg-gray-50">
       <Header />
 
-      {/* HERO */}
+      {/* BODY */}
       <div className="w-full bg-linear-to-br from-(--local-green-light)/80 to-(--local-green-dark)">
         <div className="max-w-6xl mx-auto px-6 py-10">
           <div className="flex items-center gap-5">

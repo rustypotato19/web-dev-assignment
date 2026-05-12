@@ -1,20 +1,20 @@
 import Header from "../../components/header/Header";
 import AuthContext from "../../utils/contexts/sessions/AuthContext";
 import MyError, { ContextInitError } from "../../components/error/Error";
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { CalendarDays, Users, UserRound, Plus, Trash2 } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { List, User } from "../../utils/types/Types";
 import { fetchUidByUsername, fetchUserByUsername } from "../../utils/db/Db";
 
-/* ================= TYPES ================= */
-
 /* ================= MAIN ================= */
 
 export default function Profile() {
   const ctx = useContext(AuthContext);
   const { username: paramUsername } = useParams();
+
+  const navigate = useNavigate();
 
   const isOwnProfile =
     !paramUsername ||
@@ -64,7 +64,8 @@ export default function Profile() {
     };
     setLists((prev) => [...prev, newList]);
 
-    // when implemented, navigate to this new list
+    // navigate to this new list
+    navigate(`/list/${data.listid}`);
   }
 
   /* ===== DELETE LIST ===== */
@@ -226,7 +227,7 @@ function ProfileLayout({
 
   return (
     <>
-      {/* HERO */}
+      {/* BODY */}
       <div className="w-full bg-linear-to-br from-(--local-green-light)/80 to-(--local-green-dark) text-white">
         <div className="max-w-6xl mx-auto px-6 py-10 flex flex-col lg:flex-row items-center lg:items-end gap-8">
           <div className="w-50 h-50 rounded-full overflow-hidden border-4 border-(--local-green-dark) shadow-2xl bg-white flex items-center justify-center">

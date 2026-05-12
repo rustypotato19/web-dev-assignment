@@ -322,7 +322,7 @@ export default function Settings() {
     <div className="min-h-screen bg-gray-50">
       <Header />
 
-      {/* HERO */}
+      {/* BODY */}
       <div className="w-full bg-linear-to-br from-(--local-green-light)/80 to-(--local-green-dark)">
         <div className="max-w-6xl mx-auto px-6 py-10">
           <div className="flex items-center gap-5">
@@ -453,7 +453,7 @@ export default function Settings() {
             description="Upload or change your profile picture."
           >
             <div className="space-y-5">
-              {/* Upload Circle */}
+              {/* UPLOAD CIRCLE */}
               <div
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
@@ -474,7 +474,7 @@ export default function Settings() {
                     onChange={(e) => handleImage(e.target.files?.[0] || null)}
                   />
 
-                  {/* Image */}
+                  {/* IAMGE */}
                   {profilePreview ? (
                     <>
                       <img
@@ -483,7 +483,7 @@ export default function Settings() {
                         className="w-full h-full object-cover"
                       />
 
-                      {/* Hover Overlay */}
+                      {/* HOVER OVERLAY */}
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
                         <p className="text-white text-sm font-semibold text-center px-3">
                           Click to change
@@ -492,7 +492,7 @@ export default function Settings() {
                     </>
                   ) : (
                     <>
-                      {/* Empty State */}
+                      {/* EMPTY STATE */}
                       <div className="flex flex-col items-center justify-center text-gray-400 gap-2">
                         <User size={72} strokeWidth={1.5} />
 
@@ -501,14 +501,14 @@ export default function Settings() {
                         </p>
                       </div>
 
-                      {/* Hover Overlay */}
+                      {/* HOVER OVERLAY */}
                       <div className="absolute inset-0 bg-(--local-green)/10 opacity-0 group-hover:opacity-100 transition-all duration-300" />
                     </>
                   )}
                 </label>
               </div>
 
-              {/* Remove */}
+              {/* REMOVE */}
               {profilePreview && (
                 <button
                   type="button"
