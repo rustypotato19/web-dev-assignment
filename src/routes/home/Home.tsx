@@ -1,298 +1,581 @@
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import Header from "../../components/header/Header";
-import SessionContext from "../../utils/contexts/sessions/SessionContext";
-import MyError from "../error/Error";
+import AuthContext from "../../utils/contexts/sessions/AuthContext";
+import MyError, { ContextInitError } from "../../components/error/Error";
 import shorthandDateMonthToLong from "../../utils/helpers/DateTime";
-import { PlusCircle, Pencil, Trash2, CircleUserRound } from "lucide-react";
+import {
+  PlusCircle,
+  CircleUserRound,
+  Trash2,
+  Lock,
+  Search,
+  UserPlus,
+  Check,
+} from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
+import { fetchUserByUid } from "../../utils/db/Db";
+import type { List } from "../../utils/types/Types";
 
 /* ================= TYPES ================= */
 
 type EventType = {
+  id: string;
+  uid?: number | null;
   name: string;
-  date: string; // DD-MM-YYYY
+  date: string;
+  created: string;
+  updated: string;
   editable: boolean;
 };
-
-type EditingEvent = {
-  id: string;
-  data: EventType;
-} | null;
 
 type Friend = {
   name: string;
   username: string;
-  close: boolean;
-  img?: string; // optional profile image
+  profile_image?: string;
   email: string;
+};
+
+type SearchUser = {
+  uid: number;
+  username: string;
+  fullname: string;
+  profile_image?: string;
+};
+
+type DeleteModalProps = {
+  open: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+  itemName?: string;
+};
+
+type ApiEvent = {
+  eventid: string;
+  uid?: number;
+  name: string;
+  date: string;
+  created: string;
+  updated: string;
 };
 
 /* ================= MAIN ================= */
 
 export default function Home() {
-  const ctx = useContext(SessionContext);
+  const auth = useContext(AuthContext);
 
-  /* ================= STATE ================= */
+  const [events, setEvents] = useState<EventType[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [lists, setLists] = useState<List[]>([]);
 
-  const [events, setEvents] = useState<Record<string, EventType>>({
-    "1": { name: "My Birthday 🎂", date: "19-05-2025", editable: false },
-    "2": { name: "Alex Birthday 🤝", date: "02-06-2025", editable: false },
-    "3": { name: "Gym 💪", date: "02-06-2025", editable: true },
-    "4": { name: "Meeting 🧠", date: "10-07-2025", editable: false },
-    "5": { name: "Holiday ✈️", date: "10-07-2025", editable: false },
-  });
+  const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const [showModal, setShowModal] = useState<boolean>(false);
-  const [editingEvent, setEditingEvent] = useState<EditingEvent>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [selectedDeleteEvent, setSelectedDeleteEvent] =
+    useState<EventType | null>(null);
 
-  /* ================= FRIENDS JSON ================= */
+  /* ================= FRIEND SEARCH ================= */
 
-  const friends = useMemo<Friend[]>(
-    () => [
-      {
-        name: "Alex Johnson",
-        username: "alexj",
-        close: true,
-        img: "https://i.pravatar.cc/150?img=1",
-        email: "alexj@gmail.com",
-      },
-      {
-        name: "Jamie Smith",
-        username: "jamie",
-        close: true,
-        email: "jamie@gmail.com",
-      },
-      {
-        name: "Chris Taylor",
-        username: "chris",
-        close: true,
-        img: "https://i.pravatar.cc/150?img=3",
-        email: "chris@gmail.com",
-      },
-      {
-        name: "Taylor Brown",
-        username: "taylor",
-        close: false,
-        email: "taylor@gmail.com",
-      },
-      {
-        name: "Morgan Lee",
-        username: "morgan",
-        close: false,
-        email: "morgan@gmail.com",
-      },
-      {
-        name: "Jordan White",
-        username: "jordan",
-        close: false,
-        img: "https://i.pravatar.cc/150?img=5",
-        email: "jordan@gmail.com",
-      },
-    ],
-    [],
-  );
+  const [search, setSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [addingFriend, setAddingFriend] = useState<number | null>(null);
+  const [addedFriends, setAddedFriends] = useState<number[]>([]);
 
-  const lists: string[] = ["Birthdays", "Work", "Gym", "Travel Plans"];
+  /* ================= LOAD DATA ================= */
 
-  /* ================= DERIVED ================= */
+  useEffect(() => {
+    async function init() {
+      try {
+        if (!auth) return;
 
-  const closeFriends = useMemo(() => friends.filter((f) => f.close), [friends]);
+        let currentUser = auth.user;
 
-  const allFriends = useMemo(() => friends, [friends]);
+        if (!currentUser) {
+          const storedUid = localStorage.getItem("uid");
+
+          if (!storedUid || storedUid === "undefined") {
+            setLoading(false);
+            return;
+          }
+
+          const fetchedUser = await fetchUserByUid(Number(storedUid));
+
+          auth.setUser(fetchedUser);
+
+          currentUser = fetchedUser;
+        }
+
+        if (!currentUser) return;
+
+        const uid = currentUser.uid;
+
+        const [userEventsRes, fixedEventsRes, friendsRes, listsRes] =
+          await Promise.all([
+            fetch(
+              `http://localhost:9003/api/events/user/${encodeURIComponent(uid)}`,
+            ),
+            fetch(`http://localhost:9003/api/events/fixed`),
+            fetch(
+              `http://localhost:9003/api/friends/${encodeURIComponent(uid)}`,
+            ),
+            fetch(
+              `http://localhost:9003/api/lists/user/${encodeURIComponent(uid)}`,
+            ),
+          ]);
+
+        const userEventsData = await userEventsRes.json();
+        const fixedEventsData = await fixedEventsRes.json();
+        const friendsData = await friendsRes.json();
+        const listsData = await listsRes.json();
+
+        setEvents([
+          ...(userEventsData || []).map((e: ApiEvent) => ({
+            id: e.eventid,
+            uid: e.uid,
+            name: e.name,
+            date: e.date,
+            created: e.created,
+            updated: e.updated,
+            editable: true,
+          })),
+
+          ...(fixedEventsData || []).map((e: ApiEvent) => ({
+            id: e.eventid,
+            name: e.name,
+            date: e.date,
+            created: e.created,
+            updated: e.updated,
+            editable: false,
+          })),
+        ]);
+
+        // strip past events from events list
+        setEvents((prev) =>
+          prev.filter((e) => new Date(e.date).getTime() >= Date.now()),
+        );
+
+        setFriends(friendsData.friends || []);
+        setLists(listsData || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    init();
+  }, [auth]);
+
+  /* ================= USER SEARCH ================= */
+
+  useEffect(() => {
+    async function searchUsers() {
+      if (!search.trim()) {
+        setSearchResults([]);
+        return;
+      }
+
+      try {
+        setSearchLoading(true);
+
+        const res = await fetch(
+          `http://localhost:9003/api/users/search/${encodeURIComponent(
+            search,
+          )}`,
+        );
+
+        const data = await res.json();
+
+        setSearchResults(data || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setSearchLoading(false);
+      }
+    }
+
+    const timeout = setTimeout(() => {
+      searchUsers();
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [search]);
 
   /* ================= GROUP EVENTS ================= */
 
   const groupedEvents = useMemo(() => {
-    const groups: Record<string, [string, EventType][]> = {};
+    const groups: Record<string, EventType[]> = {};
 
-    Object.entries(events).forEach(([id, event]) => {
-      if (!groups[event.date]) groups[event.date] = [];
-      groups[event.date].push([id, event]);
+    events.forEach((e) => {
+      if (!e) return;
+
+      if (!groups[e.date]) groups[e.date] = [];
+      groups[e.date].push(e);
     });
 
-    return Object.entries(groups).sort(([a], [b]) => {
-      const [d1, m1, y1] = a.split("-").map(Number);
-      const [d2, m2, y2] = b.split("-").map(Number);
-
-      if (y1 !== y2) return y1 - y2;
-      if (m1 !== m2) return m1 - m2;
-      return d1 - d2;
-    });
+    return Object.entries(groups);
   }, [events]);
 
-  /* ================= CRUD ================= */
+  /* ================= AUTH ================= */
 
-  function addEvent(name: string, date: string, editable: boolean) {
-    const id = Date.now().toString();
-    setEvents((prev) => ({
-      ...prev,
-      [id]: { name, date, editable },
-    }));
+  if (!auth) {
+    return <ContextInitError />;
   }
 
-  function updateEvent(
-    id: string,
-    name: string,
-    date: string,
-    editable: boolean,
-  ) {
-    setEvents((prev) => ({
-      ...prev,
-      [id]: { name, date, editable },
-    }));
-  }
-
-  function deleteEvent(id: string) {
-    setEvents((prev) => {
-      const copy = { ...prev };
-      delete copy[id];
-      return copy;
-    });
-  }
-
-  /* ================= GUARD ================= */
-
-  if (!ctx) {
+  if (loading) {
     return (
-      <MyError
-        ErrorCode={1002}
-        ErrorMessage="Context failed to initialise. Please try again."
-      />
+      <div className="flex items-center justify-center h-screen text-lg font-medium">
+        Loading...
+      </div>
     );
   }
 
-  const username = ctx.username || ctx.email?.split("@")[0];
+  if (!auth.isLoggedIn || !auth.user) {
+    return <MyError ErrorCode={1001} ErrorMessage="User not authenticated" />;
+  }
+
+  const user = auth.user;
+
+  /* ================= DELETE EVENT ================= */
+
+  async function deleteEvent(id: string) {
+    try {
+      await fetch(
+        `http://localhost:9003/api/events/user/delete/${encodeURIComponent(id)}`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      setEvents((prev) => prev.filter((e) => e.id !== id || !e.editable));
+
+      // strip past events from events list
+      setEvents((prev) =>
+        prev.filter((e) => new Date(e.date).getTime() >= Date.now()),
+      );
+
+      setDeleteModalOpen(false);
+      setSelectedDeleteEvent(null);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  /* ================= SAVE EVENT ================= */
+
+  async function saveEvent(name: string, date: string) {
+    const res = await fetch(
+      `http://localhost:9003/api/events/user/create/${encodeURIComponent(
+        user.uid,
+      )}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, date }),
+      },
+    );
+
+    const data = await res.json();
+
+    if (!data.eventid) return;
+
+    setEvents((prev) => [
+      ...prev,
+      {
+        id: data.eventid,
+        name: data.name,
+        date: data.date,
+        created: data.created,
+        updated: data.updated,
+        uid: data.uid,
+        editable: true,
+      },
+    ]);
+
+    // Order events by date after adding new event
+    setEvents((prev) =>
+      [...prev].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+      ),
+    );
+
+    // strip past events from ordered events list
+    setEvents((prev) =>
+      prev.filter((e) => new Date(e.date).getTime() >= Date.now()),
+    );
+
+    setShowModal(false);
+  }
+
+  /* ================= ADD FRIEND ================= */
+
+  async function addFriend(friendUid: number) {
+    try {
+      setAddingFriend(friendUid);
+
+      const res = await fetch(`http://localhost:9003/api/friends/add`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_uid: user.uid,
+          friend_uid: friendUid,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) return;
+
+      setAddedFriends((prev) => [...prev, friendUid]);
+
+      // Optimistically fetch the friend's data and add them to the friends list immediately
+      const newFriendData = await fetchUserByUid(friendUid);
+      setFriends((prev) => [
+        ...prev,
+        {
+          name: newFriendData.fullname,
+          username: newFriendData.username,
+          profile_image: newFriendData.profile_image,
+          email: newFriendData.email,
+        } as Friend,
+      ]);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setAddingFriend(null);
+    }
+  }
 
   /* ================= UI ================= */
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
-      {/* Scrollbar */}
-      <style>{`
-        .scrollbar {
-          scrollbar-width: thin;
-          scrollbar-color: #22c55e transparent;
-        }
-        .scrollbar::-webkit-scrollbar { width: 8px; }
-        .scrollbar::-webkit-scrollbar-thumb {
-          background-color: #22c55e;
-          border-radius: 9999px;
-        }
-      `}</style>
-
       <Header />
 
-      <div className="flex flex-col flex-1 px-6 py-6 gap-6 max-w-7xl mx-auto w-full overflow-hidden">
-        <h1 className="text-3xl font-bold">Welcome, {username}</h1>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 overflow-hidden">
-          {/* EVENTS */}
-          <div className="bg-white rounded-2xl shadow border flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center p-4 pb-2">
-              <h2 className="font-bold text-lg">Upcoming Events</h2>
-              <PlusCircle
-                className="cursor-pointer"
-                onClick={() => {
-                  setEditingEvent(null);
-                  setShowModal(true);
-                }}
+      <div className="flex-1 min-h-0 px-6 py-6">
+        <div className="flex flex-col h-full gap-6 max-w-7xl mx-auto">
+          <div className="flex items-center gap-3 shrink-0">
+            {user.profile_image ? (
+              <img
+                src={user.profile_image}
+                className="w-16 h-16 rounded-full object-cover border border-(--local-green-dark)"
               />
-            </div>
+            ) : (
+              <CircleUserRound className="w-10 h-10 text-gray-400" />
+            )}
 
-            <div className="flex-1 overflow-y-auto px-4 pb-4 scrollbar">
-              {groupedEvents.map(([date, items]) => (
-                <div key={date} className="mb-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <p className="font-bold text-sm whitespace-nowrap">
-                      {shorthandDateMonthToLong(date)}
-                    </p>
-                    <div className="flex-1 h-px bg-gray-300" />
-                  </div>
-
-                  {items.map(([id, event]) => (
-                    <div
-                      key={id}
-                      className="p-2 rounded-lg hover:bg-gray-100 group flex justify-between"
-                    >
-                      <p>{event.name}</p>
-
-                      {event.editable && (
-                        <div className="opacity-0 group-hover:opacity-100 flex gap-2">
-                          <Pencil
-                            size={16}
-                            className="cursor-pointer"
-                            onClick={() => {
-                              setEditingEvent({ id, data: event });
-                              setShowModal(true);
-                            }}
-                          />
-                          <Trash2
-                            size={16}
-                            className="text-red-500 cursor-pointer"
-                            onClick={() => deleteEvent(id)}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
+            <h1 className="text-3xl font-bold">Welcome, {user.username}</h1>
           </div>
 
-          {/* RIGHT SIDE */}
-          <div className="lg:col-span-2 grid gap-4">
-            {/* CLOSE FRIENDS */}
-            <PanelFriend title="Close Friends">
-              {closeFriends.map((f) => (
-                <FriendItem key={f.username} friend={f} />
-              ))}
-            </PanelFriend>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
+            {/* EVENTS */}
+            <div className="bg-white rounded-2xl shadow border flex flex-col min-h-0">
+              <div className="flex justify-between p-4 shrink-0">
+                <h2 className="font-bold">Upcoming Events</h2>
 
-            {/* ALL FRIENDS */}
-            <PanelFriend title="All Friends">
-              {allFriends.map((f) => (
-                <FriendItem key={f.username} friend={f} />
-              ))}
-            </PanelFriend>
+                <PlusCircle
+                  className="cursor-pointer"
+                  onClick={() => setShowModal(true)}
+                />
+              </div>
 
-            {/* LISTS */}
-            <PanelLists title="My Lists">
-              {lists.map((l, i) => (
-                <div key={i} className="p-2 h-fit rounded-lg hover:bg-gray-100">
-                  {l}
+              <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 mb-2">
+                {groupedEvents.length === 0 ? (
+                  <p className="text-gray-400 text-sm">No items to show</p>
+                ) : (
+                  groupedEvents.map(([date, items]) => (
+                    <div key={date} className="mb-4">
+                      <div className="flex items-center justify-center">
+                        <p className="font-bold">
+                          {shorthandDateMonthToLong(date)}
+                        </p>
+
+                        <div className="flex-1 h-0.75 ml-3 bg-black/40 rounded-full" />
+                      </div>
+
+                      {items.map((e) => (
+                        <div
+                          key={e.id}
+                          className="flex justify-between items-center px-2 py-0.5 hover:bg-gray-100 rounded-lg"
+                        >
+                          <p>{e.name}</p>
+
+                          {e.editable ? (
+                            <Trash2
+                              size={16}
+                              className="text-red-500 cursor-pointer"
+                              onClick={() => {
+                                setSelectedDeleteEvent(e);
+                                setDeleteModalOpen(true);
+                              }}
+                            />
+                          ) : (
+                            <Lock size={16} className="text-gray-400" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* RIGHT SIDE */}
+            <div className="lg:col-span-2 grid gap-4 content-start overflow-y-auto min-h-0">
+              {/* SEARCH USERS */}
+              <div className="bg-white rounded-2xl shadow border">
+                <div className="p-4 border-b">
+                  <h2 className="font-bold text-lg">Add Friends</h2>
+
+                  <div className="relative mt-3">
+                    <Search
+                      size={18}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                    />
+
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search by username..."
+                      className="w-full border rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-(--local-green-light)"
+                    />
+                  </div>
                 </div>
-              ))}
-            </PanelLists>
+
+                <div className="flex flex-col pt-3 px-3 mb-5 gap-2 min-h-fit max-h-80 overflow-y-auto">
+                  {search === "" ? (
+                    <p className="text-sm text-gray-400 my-auto">
+                      Search results will show here
+                    </p>
+                  ) : searchLoading ? (
+                    <p className="text-sm text-gray-400">Searching...</p>
+                  ) : search.trim() && searchResults.length === 0 ? (
+                    <p className="text-sm text-gray-400">No users found</p>
+                  ) : (
+                    searchResults
+                      .filter((u) => u.uid !== user.uid)
+                      .map((u) => {
+                        const alreadyFriend =
+                          friends.some((f) => f.username === u.username) ||
+                          addedFriends.includes(u.uid);
+
+                        return (
+                          <div
+                            key={u.uid}
+                            className="flex items-center justify-between border rounded-xl p-3 hover:bg-gray-50 transition-all"
+                          >
+                            <div className="flex items-center gap-3">
+                              {u.profile_image ? (
+                                <img
+                                  src={u.profile_image}
+                                  className="w-12 h-12 rounded-full object-cover"
+                                />
+                              ) : (
+                                <CircleUserRound className="w-12 h-12 text-gray-400" />
+                              )}
+
+                              <div>
+                                <p className="font-semibold">{u.fullname}</p>
+
+                                <p className="text-sm text-gray-500">
+                                  @{u.username}
+                                </p>
+                              </div>
+                            </div>
+
+                            {alreadyFriend ? (
+                              <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
+                                <Check size={18} />
+                                Added
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => addFriend(u.uid)}
+                                disabled={addingFriend === u.uid}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-(--local-green) text-white hover:bg-(--local-green-light) transition-all cursor-pointer disabled:opacity-50"
+                              >
+                                <UserPlus size={16} />
+                                Add Friend
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })
+                  )}
+                </div>
+              </div>
+
+              {/* FRIENDS */}
+              <Panel title="All Friends">
+                {friends.length === 0 ? (
+                  <p className="text-gray-400 text-sm">
+                    You don't have any friends yet {":("}
+                  </p>
+                ) : (
+                  friends.map((f) => <FriendItem key={f.username} friend={f} />)
+                )}
+              </Panel>
+
+              {/* LISTS */}
+              <Panel title="My Lists">
+                {lists.length === 0 ? (
+                  <p className="text-gray-400 text-sm">
+                    You haven't created any lists yet
+                  </p>
+                ) : (
+                  lists.map((l) => (
+                    <a
+                      href={`/list/${l.listid}`}
+                      key={l.listid}
+                      className="flex flex-col gap-1 p-2 border rounded-lg hover:bg-neutral-200 cursor-pointer transition"
+                    >
+                      <p className="font-medium">{l.name}</p>
+
+                      <p className="text-sm text-gray-400">
+                        {l.description || "No description provided"}
+                      </p>
+                    </a>
+                  ))
+                )}
+              </Panel>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* MODAL */}
+      {/* MODALS */}
       <AnimatePresence>
         {showModal && (
-          <EventModal
-            editing={editingEvent}
-            onClose={() => setShowModal(false)}
-            onSave={(name, date) => {
-              if (editingEvent) {
-                updateEvent(editingEvent.id, name, date, true);
-              } else {
-                addEvent(name, date, true);
-              }
-              setShowModal(false);
-            }}
-          />
+          <EventModal onClose={() => setShowModal(false)} onSave={saveEvent} />
         )}
       </AnimatePresence>
+
+      <DeleteConfirmModal
+        open={deleteModalOpen}
+        itemName={selectedDeleteEvent?.name}
+        onCancel={() => {
+          setDeleteModalOpen(false);
+          setSelectedDeleteEvent(null);
+        }}
+        onConfirm={() => {
+          if (!selectedDeleteEvent) return;
+
+          deleteEvent(selectedDeleteEvent.id);
+        }}
+      />
     </div>
   );
 }
 
-/* ================= REUSABLE Panels ================= */
+/* ================= PANEL ================= */
 
-function PanelFriend({
+function Panel({
   title,
   children,
 }: {
@@ -300,158 +583,191 @@ function PanelFriend({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white rounded-2xl shadow border flex flex-col overflow-hidden">
+    <div className="bg-white rounded-2xl shadow border">
       <div className="p-3 font-semibold">{title}</div>
-      <div className="flex-1 flex flex-row overflow-x-auto scrollbar px-3">
-        {children}
-      </div>
+
+      <div className="flex gap-3 overflow-x-auto p-3">{children}</div>
     </div>
   );
 }
 
-function PanelLists({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="bg-white rounded-2xl shadow border flex flex-col overflow-hidden min-h-fit h-full">
-      <div className="p-3 font-semibold">{title}</div>
-      <div className="flex-1 h-fit flex flex-row overflow-x-auto scrollbar px-3">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-/* ================= FRIEND ITEM ================= */
+/* ================= FRIEND ================= */
 
 function FriendItem({ friend }: { friend: Friend }) {
   return (
     <a
-      href={`/profile/${encodeURIComponent(friend.username)}`}
-      className="flex flex-row items-center gap-3 p-2 rounded-lg hover:bg-gray-100 h-fit min-h-24"
+      href={`/profile/${friend.username}`}
+      className="flex items-center gap-3 p-2 hover:bg-neutral-200 cursor-pointer transition rounded-lg"
     >
-      {friend.img ? (
-        <img src={friend.img} className="w-12 h-12 rounded-full object-cover" />
+      {friend.profile_image ? (
+        <img
+          src={friend.profile_image}
+          className="w-10 h-10 rounded-full object-cover border border-(--local-green-dark)"
+        />
       ) : (
-        <CircleUserRound strokeWidth={1} className="w-16 h-16 text-gray-400" />
+        <CircleUserRound className="w-10 h-10 text-gray-400" />
       )}
 
-      <div className="flex flex-col">
-        <span className="text-sm font-medium">{friend.name}</span>
-        <span className="text-xs text-gray-400">@{friend.username}</span>
+      <div>
+        <p className="text-sm font-medium">{friend.name}</p>
+
+        <p className="text-xs text-gray-400">@{friend.username}</p>
       </div>
     </a>
   );
 }
 
-/* ================= MODAL ================= */
+/* ================= EVENT MODAL ================= */
 
 function EventModal({
-  editing,
   onClose,
   onSave,
 }: {
-  editing: EditingEvent;
   onClose: () => void;
   onSave: (name: string, date: string) => void;
 }) {
-  const [name, setName] = useState(editing?.data.name || "");
+  const [name, setName] = useState("");
   const [date, setDate] = useState("");
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-
-  const inputRef = useRef<HTMLInputElement>(null);
-  const pickerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  function formatDate(value: string) {
-    const [y, m, d] = value.split("-");
-    return `${d}-${m}-${y}`;
-  }
 
   return (
     <>
       <motion.div
+        className="fixed inset-0 bg-black/40 z-40"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
-        onClick={() => {
-          onClose();
-          setShowEmojiPicker((x) => !x);
-        }}
+        onClick={onClose}
       />
 
       <motion.div
-        initial={{ opacity: 0, y: -25 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -25 }}
         className="fixed inset-0 flex items-center justify-center z-50"
+        initial={{ opacity: 0, y: -20, scale: 0.8 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 20, scale: 0.8 }}
       >
         <div
-          className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-sm flex flex-col gap-4"
+          className="bg-white p-6 rounded-2xl shadow w-full max-w-sm flex flex-col gap-4"
           onClick={(e) => e.stopPropagation()}
         >
-          <h2 className="font-bold text-xl">
-            {editing ? "Edit Event" : "Add Event"}
-          </h2>
-
-          <div className="relative">
-            <input
-              ref={inputRef}
-              className="border rounded-xl px-3 py-2 pr-10 w-full"
-              value={name}
-              placeholder="Jane's Birthday 🎂"
-              onChange={(e) => setName(e.target.value)}
-            />
-
-            <button
-              className="absolute right-2 top-2 cursor-pointer"
-              onClick={() => setShowEmojiPicker((x) => !x)}
-            >
-              😊
-            </button>
-
-            {showEmojiPicker && (
-              <div ref={pickerRef} className="absolute top-12 right-0">
-                <EmojiPicker
-                  onEmojiClick={(e: EmojiClickData) =>
-                    setName((prev) => prev + e.emoji)
-                  }
-                />
-              </div>
-            )}
-          </div>
+          <h2 className="font-bold text-xl">Add Event</h2>
 
           <input
+            className="border p-2 rounded"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Event name"
+          />
+          <input
             type="date"
-            className="border rounded-xl px-3 py-2"
-            value={date}
+            className="border p-2 rounded"
             onChange={(e) => setDate(e.target.value)}
+            min={new Date().toISOString().split("T")[0]}
           />
 
-          <div className="flex justify-end gap-4">
-            <button
-              onClick={onClose}
-              className="cursor-pointer font-medium hover:scale-105 transition-all duration-300"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => onSave(name, formatDate(date))}
-              className="bg-(--local-green) hover:bg-(--local-green-light) text-white px-4 py-2 rounded-xl cursor-pointer font-medium hover:scale-105 transition-all duration-300"
-            >
-              Save
-            </button>
+          <div className="flex justify-between items-center gap-3">
+            <p className="text-xs text-red-500">
+              {date <= new Date().toISOString().split("T")[0]
+                ? "Please select a future date."
+                : ""}
+            </p>
+            <div className="flex gap-3">
+              <button
+                className="px-4 py-2 rounded cursor-pointer hover:bg-neutral-300 transition-all"
+                onClick={onClose}
+              >
+                Cancel
+              </button>
+
+              <button
+                className="bg-(--local-green) text-white px-4 py-2 rounded cursor-pointer hover:bg-(--local-green-light) transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium hover:scale-105 disabled:hover:scale-100 disabled:hover:bg-(--local-green)"
+                onClick={() => onSave(name, date)}
+                disabled={
+                  !name.trim() ||
+                  !date ||
+                  date <= new Date().toISOString().split("T")[0]
+                }
+              >
+                Save
+              </button>
+            </div>
           </div>
         </div>
       </motion.div>
     </>
+  );
+}
+
+/* ================= CONFIRM DELETION MODAL ================= */
+
+function DeleteConfirmModal({
+  open,
+  onCancel,
+  onConfirm,
+  itemName,
+}: DeleteModalProps) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div
+            className="fixed inset-0 bg-black/40 z-40"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onCancel}
+          />
+
+          <motion.div
+            className="fixed inset-0 flex items-center justify-center z-50"
+            initial={{
+              opacity: 0,
+              scale: 0.8,
+              y: -20,
+            }}
+            animate={{
+              opacity: 1,
+              scale: 1,
+              y: 0,
+            }}
+            exit={{
+              opacity: 0,
+              scale: 0.8,
+              y: 20,
+            }}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-sm flex flex-col gap-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-lg font-bold">Delete event?</h2>
+
+              <p className="text-sm text-gray-600">
+                Are you sure you want to delete{" "}
+                <span className="font-semibold">
+                  {itemName ? `"${itemName}"` : "this event"}
+                </span>
+                ? This action cannot be undone.
+              </p>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  onClick={onCancel}
+                  className="px-3 py-1 rounded hover:bg-neutral-300 transition cursor-pointer font-medium"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={onConfirm}
+                  className="px-3 py-1 rounded bg-red-700 text-white hover:bg-red-500 active:bg-red-800 transition cursor-pointer font-medium hover:scale-105"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 }

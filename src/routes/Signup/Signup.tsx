@@ -14,12 +14,11 @@ import {
   UserRound,
 } from "lucide-react";
 import { useNavigate } from "react-router";
-import { setSession } from "../../utils/auth/SessionHandler";
-import SessionContext from "../../utils/contexts/sessions/SessionContext";
-import MyError from "../error/Error";
+import AuthContext from "../../utils/contexts/sessions/AuthContext";
+import MyError from "../../components/error/Error";
 
 export default function Signup() {
-  const ctx = useContext(SessionContext);
+  const ctx = useContext(AuthContext);
 
   const [stepCounter, setStepCounter] = useState<number>(0);
 
@@ -49,8 +48,6 @@ export default function Signup() {
   const [dateTouched, setDateTouched] = useState<boolean>(false);
 
   // PFP
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [profileFile, setProfileFile] = useState<File | null>(null);
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
 
@@ -61,29 +58,77 @@ export default function Signup() {
   // Email
   const emailIsValid = validEmail(email);
   const emailsMatch = email === emailVer && email !== "";
+  const [emailExists, setEmailExists] = useState<boolean>(false);
+
+  const emailErrorMessage = !emailTouched
+    ? "Enter your email"
+    : !emailIsValid
+      ? "Invalid email"
+      : emailVerTouched && !emailsMatch
+        ? "Emails do not match"
+        : emailExists
+          ? "Email already exists"
+          : "OK";
+
+  useEffect(() => {
+    async function validateEmail() {
+      try {
+        const res = await fetch(
+          `http://localhost:9003/api/auth/ver/email/${encodeURIComponent(email)}`,
+        );
+
+        const data = await res.json();
+
+        console.log(data);
+
+        setEmailExists(data.exists);
+      } catch (err) {
+        console.error(err);
+        return false;
+      }
+    }
+    if (emailsMatch) validateEmail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email, emailVer]);
 
   // Username
-  const [usernameValid, setUsernameValid] = useState<boolean>(false);
-  const [usernameErrorMessage, setUsernameErrorMessage] =
-    useState<string>("ERR");
+  const usernameValid = validUsername(username)[0];
+  const [usernameExists, setUsernameExists] = useState<boolean>(false);
+  const usernameErrorMessage = usernameExists
+    ? "Username already taken"
+    : validUsername(username)[1];
+
+  useEffect(() => {
+    if (username === "" || password === "") return;
+
+    const currentUsername = username;
+
+    async function validateUsername() {
+      try {
+        const res = await fetch(
+          `http://localhost:9003/api/auth/ver/username/${encodeURIComponent(currentUsername)}`,
+        );
+
+        const data = await res.json();
+
+        // ignore stale responses
+        if (currentUsername !== username) return;
+
+        setUsernameExists(data.exists);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    validateUsername();
+  }, [username, password]);
 
   // Fullname
   const nameValid = validFullName(name);
 
   // DoB
   const [dobValid, setDobValid] = useState<boolean>(false);
-  const [dobErrorMessage, setDobErrorMessage] = useState<string>("ERR");
-
-  useEffect(() => {
-    function validateDob() {
-      if (username) {
-        const res = validUsername(username);
-        setUsernameValid(res[0]);
-        setUsernameErrorMessage(res[1]);
-      }
-    }
-    validateDob();
-  }, [username]);
+  const [dobErrorMessage, setDobErrorMessage] = useState<string>("OK");
 
   useEffect(() => {
     function validateDob() {
@@ -106,19 +151,19 @@ export default function Signup() {
   const passwordValid =
     hasLower && hasUpper && hasNumber && hasSpecial && hasMinLength;
 
-  const [keepSession, setKeepSession] = useState<boolean>(false);
-
   // =========================
   // STEP VALIDATION
   // =========================
 
-  const canProceedStep0 = emailIsValid && emailsMatch;
+  const canProceedStep0 = emailIsValid && emailsMatch && !emailExists;
   const canProceedStep1 = nameValid && dobValid;
   const canProceedStep2 = true;
-  const canProceedStep3 = usernameValid && passwordValid;
+  const canProceedStep3 = usernameValid && passwordValid && !usernameExists;
 
   const totalSteps = 4;
   const progress = ((stepCounter + 1) / totalSteps) * 100;
+
+  const [loading, setLoading] = useState<boolean>(false);
 
   // =========================
   // UI HELPERS
@@ -131,35 +176,93 @@ export default function Signup() {
   // FUNCTIONS
   // =========================
 
-  function onAccountCreate() {
-    if (keepSession) {
-      setSession(email, username, name, profilePreview || undefined);
+  async function onAccountCreate() {
+    setLoading(true);
+
+    try {
+      const res = await fetch("http://localhost:9003/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          username,
+          fullname: name,
+          date_of_birth: date,
+          password,
+          profile_image: profilePreview,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) throw new Error();
+
+      /* ================= SEND WELCOME EMAIL ================= */
+
+      try {
+        await fetch("http://localhost:9003/api/mail/welcome", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            username,
+          }),
+        });
+      } catch (mailErr) {
+        console.error("Failed to send welcome email:", mailErr);
+      }
+
+      /* ================= LOAD USER ================= */
+
+      const userRes = await fetch(
+        `http://localhost:9003/api/users/${data.uid}`,
+      );
+
+      const userData = await userRes.json();
+
+      ctx?.setUser(userData);
+
+      localStorage.setItem("uid", data.uid);
+
+      navigate("/home");
+    } catch {
+      alert("Signup failed");
+    } finally {
+      setLoading(false);
     }
-
-    ctx?.setEmail(email);
-    ctx?.setUsername(username);
-    ctx?.setFullname(name);
-
-    ctx?.setIsLoggedIn(true);
-
-    navigate("/home");
   }
 
   function handleImage(file: File | null) {
     if (!file) return;
 
+    const img = new Image();
     const reader = new FileReader();
 
-    reader.onloadend = () => {
-      const imageString = reader.result as string;
+    reader.onload = (e) => {
+      img.src = e.target?.result as string;
+    };
 
-      // store usable image string
-      setProfilePreview(imageString);
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
 
-      // optional raw file if backend upload needed later
-      setProfileFile(file);
+      const MAX_WIDTH = 250;
+      const scale = MAX_WIDTH / img.width;
 
-      console.log(imageString);
+      canvas.width = MAX_WIDTH;
+      canvas.height = img.height * scale;
+
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) return;
+
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      // compress to jpeg
+      const compressed = canvas.toDataURL("image/jpeg", 0.7);
+
+      setProfilePreview(compressed);
     };
 
     reader.readAsDataURL(file);
@@ -273,18 +376,13 @@ export default function Signup() {
                 <p
                   className={`text-left ${
                     (!emailIsValid && emailTouched) ||
-                    (!emailsMatch && emailVerTouched)
+                    (!emailsMatch && emailVerTouched) ||
+                    emailErrorMessage != "OK"
                       ? "text-red-600"
                       : "text-white"
                   }`}
                 >
-                  {!emailTouched
-                    ? "Enter your email"
-                    : !emailIsValid
-                      ? "Invalid email"
-                      : emailVerTouched && !emailsMatch
-                        ? "Emails do not match"
-                        : "All good!"}
+                  {emailErrorMessage}
                 </p>
 
                 {/* Next Button */}
@@ -293,9 +391,6 @@ export default function Signup() {
                   onClick={() => {
                     if (canProceedStep0) {
                       setStepCounter((x) => x + 1);
-                      if (email) {
-                        ctx.setEmail(email);
-                      }
                     } else {
                       setEmailTouched(true);
                       setEmailVerTouched(true);
@@ -367,9 +462,6 @@ export default function Signup() {
                   onClick={() => {
                     if (canProceedStep1) {
                       setStepCounter((x) => x + 1);
-                      if (name) {
-                        ctx.setFullname(name);
-                      }
                     } else {
                       setEmailTouched(true);
                       setEmailVerTouched(true);
@@ -464,7 +556,6 @@ export default function Signup() {
                   <button
                     type="button"
                     onClick={() => {
-                      setProfileFile(null);
                       setProfilePreview(null);
                     }}
                     className="text-sm text-red-500 hover:text-red-700 transition-all duration-200 hover:scale-105 cursor-pointer"
@@ -479,10 +570,6 @@ export default function Signup() {
                     className="text-2xl font-bold text-white bg-(--local-green) py-3 px-6 rounded-xl shadow-xl border hover:scale-105 hover:bg-(--local-green-light) transition-all duration-200 active:bg-(--local-green-dark) cursor-pointer disabled:cursor-not-allowed disabled:opacity-25 disabled:scale-100 disabled:bg-(--local-green)"
                     onClick={() => {
                       if (canProceedStep2) {
-                        if (profilePreview) {
-                          localStorage.setItem("profileImage", profilePreview);
-                          ctx.setProfileImage(profilePreview);
-                        }
                         setStepCounter((x) => x + 1);
                       }
                     }}
@@ -516,7 +603,7 @@ export default function Signup() {
                   />
                   <p
                     className={
-                      usernameTouched && !usernameValid
+                      (usernameTouched && !usernameValid) || usernameExists
                         ? "text-red-600"
                         : "text-white"
                     }
@@ -584,15 +671,6 @@ export default function Signup() {
                   </ul>
                 </div>
 
-                <div className="flex flex-row gap-2">
-                  <input
-                    type="checkbox"
-                    checked={keepSession}
-                    onChange={() => setKeepSession((x) => !x)}
-                  />
-                  <p>Keep me signed in</p>
-                </div>
-
                 {/* Create Account Button */}
                 <button
                   className="text-2xl font-bold text-white bg-(--local-green) py-3 px-6 rounded-xl shadow-xl border hover:scale-105 hover:bg-(--local-green-light) transition-all duration-200 active:bg-(--local-green-dark) cursor-pointer disabled:cursor-not-allowed disabled:opacity-25 disabled:scale-100"
@@ -605,9 +683,9 @@ export default function Signup() {
                     }
                     console.log(exportData());
                   }}
-                  disabled={!canProceedStep3}
+                  disabled={!canProceedStep3 && !loading}
                 >
-                  Create Account
+                  {loading ? "Creating Account..." : "Create Account"}
                 </button>
               </div>
             )}

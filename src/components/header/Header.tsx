@@ -1,90 +1,121 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown } from "lucide-react";
+import { CircleChevronDown } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
-import { checkSession } from "../../utils/auth/SessionHandler";
-import { Cookies } from "react-cookie";
-import { useNavigate } from "react-router";
-import SessionContext from "../../utils/contexts/sessions/SessionContext";
-import MyError from "../../routes/error/Error";
+import AuthContext from "../../utils/contexts/sessions/AuthContext";
+import { ContextInitError } from "../error/Error";
 
-type Props = {
-  sticky?: true;
-};
+export default function Header() {
+  const auth = useContext(AuthContext);
 
-export default function Header({ sticky }: Props) {
-  const ctx = useContext(SessionContext);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  const [menuOpen, setMenuOpen] = useState<boolean>(false);
+  const headerHeight = 96 + 32 + 32; // 96 height, 32 pt, 32 pb
 
-  const navigate = useNavigate();
-
-  /* On Mount */
   useEffect(() => {
-    if (!checkSession) navigate("/");
+    //
+    // This is a permanent fallback which, once per mount, tries to set the logged in user
+    // into context if they have a valid session, but the context is not set
+    // for some reason (e.g. page refresh)
+    //
+
+    if (!auth) return;
+
+    if (!auth.isLoggedIn && localStorage.getItem("uid")) {
+      const storedUid = localStorage.getItem("uid");
+
+      const result = fetch(`http://localhost:9003/api/users/${storedUid}`);
+
+      const handleResult = async () => {
+        try {
+          const res = await result;
+          if (!res.ok) {
+            throw new Error(`Failed to fetch user data: ${res.statusText}`);
+          }
+          const data = await res.json();
+
+          if (!data?.uid) {
+            throw new Error("Invalid user data");
+          }
+
+          auth.setUser(data);
+          console.log("[HEADER] Hydrated user from localStorage:", data);
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        }
+      };
+
+      handleResult();
+    } else {
+      console.log(
+        "[HEADER] No stored UID or user already logged in, skipping hydration",
+      );
+      console.log("[HEADER] localStorage UID:", localStorage.getItem("uid"));
+      console.log("[HEADER] Auth context state:", auth);
+    }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!ctx) {
-    return (
-      <MyError
-        ErrorCode={1002}
-        ErrorMessage="Context failed to initiialise. Please try again."
-      />
-    );
+  if (!auth) {
+    return <ContextInitError />;
   }
 
   return (
     <>
       <div
-        className={`${sticky && "sticky top-0"} relative w-screen h-fit flex items-center justify-between bg-(--local-green) text-white p-8 z-30 shadow-xl`}
+        className={`relative w-screen flex items-center justify-between bg-(--local-green) text-white h-24 p-8 z-30 shadow-xl`}
       >
         <a
           href="/"
-          className="text-2xl font-bold hover:scale-105 duration-300 transition-all"
+          className="text-2xl font-bold hover:scale-105 transition-all duration-300"
         >
           mygiftlist.com
         </a>
-        <h1 className="text-2xl font-bold">
-          <AnimatePresence>
-            <motion.div
-              initial={{ rotate: 0 }}
-              animate={{ rotate: menuOpen ? 180 : 0 }}
-              transition={{ duration: 0.75 }}
-              className="w-fit h-fit border rounded-full pt-0.5 px-0.5 hover:bg-(--local-green-light) duration-300 transition-all cursor-pointer"
-              onClick={() => {
-                setMenuOpen((prev) => !prev);
-              }}
-            >
-              <ChevronDown width={32} height={32} />
-            </motion.div>
-          </AnimatePresence>
-        </h1>
+
+        <div
+          className="w-fit cursor-pointer "
+          onClick={() => setMenuOpen((p) => !p)}
+        >
+          <motion.div
+            animate={{ rotate: menuOpen ? 180 : 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <CircleChevronDown
+              width={48}
+              height={48}
+              strokeWidth={1}
+              className="hover:bg-(--local-green-light) transition-all duration-300 rounded-full"
+            />
+          </motion.div>
+        </div>
       </div>
+
       <div className="z-20">
         <AnimatePresence mode="wait">
-          {menuOpen && <NavModal />}
+          {menuOpen && <NavModal pxOffset={headerHeight} />}
         </AnimatePresence>
       </div>
     </>
   );
 }
 
-function NavModal() {
-  const ctx = useContext(SessionContext);
+function NavModal({ pxOffset }: { pxOffset: number }) {
+  const auth = useContext(AuthContext);
 
-  const loggedIn = checkSession();
+  const itemHeight = 48;
 
-  const cookies = new Cookies();
+  if (!auth) {
+    return <ContextInitError />;
+  }
 
-  const navigate = useNavigate();
-
-  const navItems = loggedIn
+  const navItems = auth.isLoggedIn
     ? {
         Home: "/home",
         "My Lists": "/lists",
-        "My Profile": `/profile`,
+        "My Profile": `/profile/${auth.user?.username}`,
+        Settings: "/settings",
         About: "/about",
-        Logout: "",
+        Logout: "/logout",
       }
     : {
         Landing: "/",
@@ -93,56 +124,31 @@ function NavModal() {
         About: "/about",
       };
 
-  const urlBase = "http://localhost:5173";
-
-  if (!ctx) {
-    return (
-      <MyError
-        ErrorCode={1002}
-        ErrorMessage="Context failed to initialise. Please try again."
-      />
-    );
-  }
+  // +2 for 1px on top and bottom borders
+  //
+  const animationOffset =
+    itemHeight * Object.keys(navItems).length +
+    2 +
+    12 * Object.keys(navItems).length;
 
   return (
     <motion.div
-      initial={{ y: -150 }}
+      initial={{ y: -animationOffset }}
       animate={{ y: 0 }}
-      exit={{ y: -150 }}
+      exit={{ y: -animationOffset }}
       transition={{ duration: 0.8 }}
-      className="w-fit h-fit absolute top-25 right-0 bg-(--local-green) shadow-xl text-white rounded-b-2xl overflow-hidden pb-1"
+      className={`absolute right-0 top-${pxOffset} bg-(--local-green) shadow-xl text-white rounded-b-2xl overflow-hidden border border-(--local-green-dark)`}
     >
-      <div className="w-full h-full flex flex-col items-center justify-center rounded-b-2xl">
-        {Object.entries(navItems).map(([label, href], index) =>
-          label === "Logout" ? (
-            <button
-              key={index}
-              className={`text-xl font-bold bg-(--local-green) ${index === 0 ? "border-b-2" : index === Object.keys(navItems).length - 1 ? "border-t-2" : "border-y-2"} border-(--local-green) hover:border-(--local-green-light) hover:bg-(--local-green-dark) transition-all duration-300 w-full h-full text-center cursor-pointer py-2 px-4`}
-              onClick={() => {
-                const allCookies = cookies.getAll();
-
-                Object.keys(allCookies).forEach((cookieName) => {
-                  cookies.remove(cookieName);
-                });
-
-                console.log("Logged out. Cleared all cookies.");
-
-                navigate("/");
-              }}
-            >
-              {label}
-            </button>
-          ) : (
-            <a
-              href={href}
-              key={index}
-              className={`text-xl font-bold bg-(--local-green) ${index === 0 ? "border-b-2" : index === Object.keys(navItems).length - 1 ? "border-t-2" : "border-y-2"} border-(--local-green) hover:border-(--local-green-light) hover:bg-(--local-green-dark) transition-all duration-300 w-full h-full text-center cursor-pointer py-2 px-4`}
-              hidden={window.location.href === urlBase + href}
-            >
-              {label}
-            </a>
-          ),
-        )}
+      <div className={`flex flex-col w-40 h-${itemHeight} text-center`}>
+        {Object.entries(navItems).map(([label, href]) => (
+          <a
+            key={label}
+            href={href}
+            className="text-lg font-bold py-3 border-y border-(--local-green-dark) hover:bg-(--local-green-dark) transition-all"
+          >
+            {label}
+          </a>
+        ))}
       </div>
     </motion.div>
   );
