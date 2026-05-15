@@ -23,7 +23,9 @@ export default function Header() {
     if (!auth.isLoggedIn && localStorage.getItem("uid")) {
       const storedUid = localStorage.getItem("uid");
 
-      const result = fetch(`https://webdev.aboutkonrad.com/api/users/${storedUid}`);
+      const result = fetch(
+        `https://webdev.aboutkonrad.com/api/users/id/${storedUid}`,
+      );
 
       const handleResult = async () => {
         try {

@@ -76,7 +76,7 @@ export default function List() {
         if (!storedUid) return;
 
         const res = await fetch(
-          `https://webdev.aboutkonrad.com/api/users/${storedUid}`,
+          `https://webdev.aboutkonrad.com/api/users/id/${storedUid}`,
         );
 
         if (!res.ok) return;
@@ -427,7 +427,7 @@ export default function List() {
 
           <button
             onClick={updateItem}
-            className="w-full bg-(--local-green) hover:bg-(--local-green-dark) transition-all duration-300 text-white rounded-xl py-3 font-semibold mt-5 flex items-center justify-center gap-2"
+            className="w-full bg-(--local-green) hover:bg-(--local-green-dark) transition-all duration-300 text-white rounded-xl py-3 font-semibold mt-5 flex items-center justify-center gap-2 cursor-pointer"
           >
             <Save size={18} />
             Save Changes

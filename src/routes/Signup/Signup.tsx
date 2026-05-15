@@ -11,6 +11,8 @@ import {
   CircleCheck,
   CircleQuestionMark,
   CircleX,
+  Eye,
+  EyeClosed,
   UserRound,
 } from "lucide-react";
 import { useNavigate } from "react-router";
@@ -37,6 +39,8 @@ export default function Signup() {
   // PASSWORD
   const [password, setPassword] = useState<string>("");
   const [passwordTouched, setPasswordTouched] = useState<boolean>(false);
+
+  const [passwordVisible, setPasswordVisible] = useState<boolean>(false);
 
   // FULLNAME
 
@@ -180,18 +184,21 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const res = await fetch("https://webdev.aboutkonrad.com/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          username,
-          fullname: name,
-          date_of_birth: date,
-          password,
-          profile_image: profilePreview,
-        }),
-      });
+      const res = await fetch(
+        "https://webdev.aboutkonrad.com/api/auth/signup",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            username,
+            fullname: name,
+            date_of_birth: date,
+            password,
+            profile_image: profilePreview,
+          }),
+        },
+      );
 
       const data = await res.json();
 
@@ -217,7 +224,7 @@ export default function Signup() {
       /* ================= LOAD USER ================= */
 
       const userRes = await fetch(
-        `https://webdev.aboutkonrad.com/api/users/${data.uid}`,
+        `https://webdev.aboutkonrad.com/api/users/id/${data.uid}`,
       );
 
       const userData = await userRes.json();
@@ -615,16 +622,33 @@ export default function Signup() {
                 {/* Password */}
                 <div className="flex flex-col gap-2">
                   <h2 className="font-semibold text-2xl">Password</h2>
-                  <input
-                    type="password"
-                    placeholder={"••••••••"}
-                    className="border rounded-xl w-full px-3 py-2 font-semibold"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      if (!passwordTouched) setPasswordTouched(true);
-                    }}
-                  />
+                  <div
+                    className={`border rounded-xl w-full px-3 py-2 ${password != "" && "font-semibold"}`}
+                  >
+                    <input
+                      type={passwordVisible ? "text" : "password"}
+                      placeholder={"••••••••"}
+                      className="w-full px-3 py-2 font-semibold"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (!passwordTouched) setPasswordTouched(true);
+                      }}
+                    />
+                    {passwordVisible ? (
+                      <EyeClosed
+                        size={20}
+                        className="cursor-pointer"
+                        onClick={() => setPasswordVisible(!passwordVisible)}
+                      />
+                    ) : (
+                      <Eye
+                        size={20}
+                        className="cursor-pointer"
+                        onClick={() => setPasswordVisible(!passwordVisible)}
+                      />
+                    )}
+                  </div>
 
                   {/* Bullet validation */}
                   <ul className="text-sm flex flex-col gap-1 mt-2 w-fit">

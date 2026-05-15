@@ -65,7 +65,7 @@ export default function Settings() {
           uid = parseInt(storedUid, 10);
         }
 
-        const res = await fetch(`https://webdev.aboutkonrad.com/api/users/${uid}`);
+        const res = await fetch(`https://webdev.aboutkonrad.com/api/users/id/${uid}`);
 
         if (!res.ok) {
           throw new Error("Failed to fetch user");
@@ -290,7 +290,7 @@ export default function Settings() {
     if (!user) return;
 
     try {
-      await fetch(`https://webdev.aboutkonrad.com/api/users/${user.uid}`, {
+      await fetch(`https://webdev.aboutkonrad.com/api/users/id/${user.uid}`, {
         method: "DELETE",
       });
 

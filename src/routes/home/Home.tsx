@@ -15,6 +15,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { fetchUserByUid } from "../../utils/db/Db";
 import type { List } from "../../utils/types/Types";
+import { useNavigate } from "react-router";
 
 /* ================= TYPES ================= */
 
@@ -587,15 +588,16 @@ function Panel({
   children: React.ReactNode;
   link?: string;
 }) {
+  const navigate = useNavigate();
+
   return (
     <div className="bg-white rounded-2xl shadow border">
-      {link ? (
-        <a href={link} className="p-3 font-semibold">
-          {title}
-        </a>
-      ) : (
-        <div className="p-3 font-semibold">{title}</div>
-      )}
+      <div
+        onClick={() => link && navigate(link)}
+        className={`p-3 font-semibold ${link && "cursor-pointer hover:bg-neutral-200 transition rounded-tl-2xl rounded-tr-2xl"}`}
+      >
+        {title}
+      </div>
 
       <div className="flex gap-3 overflow-x-auto p-3">{children}</div>
     </div>

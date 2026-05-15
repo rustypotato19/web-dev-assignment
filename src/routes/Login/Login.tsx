@@ -2,47 +2,62 @@ import { useContext, useEffect, useState } from "react";
 import Header from "../../components/header/Header";
 import { useNavigate } from "react-router";
 import AuthContext from "../../utils/contexts/sessions/AuthContext";
-import MyError from "../../components/error/Error";
+import MyError, { ContextInitError } from "../../components/error/Error";
 import {
   validEmail,
   validLoginPassword,
   validUsername,
 } from "../../utils/auth/LogonHandler";
 import { fetchUserByUid } from "../../utils/db/Db";
+import { Eye, EyeClosed } from "lucide-react";
 
 export default function Login() {
   const auth = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const [identifier, setIdentifier] = useState(""); // email OR username
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+
+  const [passwordVisible, setPasswordVisible] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string>("OK");
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
   useEffect(() => {
     function validateIdentifierAndPass() {
+      if (!identifier && !password) {
+        setError(false);
+        setErrorMessage("");
+        return;
+      }
+
       const isEmail = identifier.includes("@");
 
-      if (isEmail && !validEmail(identifier)) {
-        setErrorMessage("Invalid email format");
-        setError(true);
-      } else if (!isEmail && !validUsername(identifier)[0]) {
-        setErrorMessage(validUsername(identifier)[1]);
-        setError(true);
-      } else if (
-        !validLoginPassword(password) &&
-        identifier &&
-        password.length > 0
-      ) {
+      if (identifier) {
+        if (isEmail && !validEmail(identifier)) {
+          setErrorMessage("Invalid email format");
+          setError(true);
+          return;
+        }
+
+        if (!isEmail && !validUsername(identifier)[0]) {
+          setErrorMessage(validUsername(identifier)[1]);
+          setError(true);
+          return;
+        }
+      }
+
+      if (password && password.length > 0 && !validLoginPassword(password)) {
         setErrorMessage("Password too short");
         setError(true);
-      } else {
-        setError(false);
-        setErrorMessage("OK");
+        return;
       }
+
+      setError(false);
+      setErrorMessage("");
     }
+
     validateIdentifierAndPass();
   }, [identifier, password]);
 
@@ -58,8 +73,15 @@ export default function Login() {
   async function handleLogin() {
     setLoading(true);
     setError(false);
+    setErrorMessage("");
 
     try {
+      if (!identifier || !password) {
+        setError(true);
+        setErrorMessage("Please enter your credentials.");
+        return;
+      }
+
       const isEmail = identifier.includes("@");
 
       const endpoint = isEmail
@@ -72,30 +94,69 @@ export default function Login() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: isEmail ? identifier : undefined,
-          username: !isEmail ? identifier : undefined,
+          ...(isEmail
+            ? { email: identifier.trim() }
+            : { username: identifier.trim() }),
           password,
         }),
       });
 
-      const data = await res.json();
+      let data = null;
 
-      if (!data.success) {
-        throw new Error("Invalid credentials");
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error("Invalid server response");
       }
 
-      auth?.setUser(await fetchUserByUid(data.user.uid));
+      /* Prefer exact backend message */
+      if (!res.ok || !data?.success) {
+        const serverMessage =
+          data?.error || data?.message || "Login failed. Check credentials.";
 
-      console.log("User logged in?", auth?.isLoggedIn);
-      console.log("Context user object?", auth?.user);
+        setError(true);
+        setErrorMessage(serverMessage);
 
-      localStorage.setItem("uid", data.user.uid);
+        return;
+      }
+
+      if (!data?.user?.uid) {
+        throw new Error("Missing user data");
+      }
+
+      /* Persist session */
+      localStorage.setItem("uid", String(data.user.uid));
+
+      /* Fetch full user object */
+      const fullUser = await fetchUserByUid(data.user.uid);
+
+      if (!fullUser) {
+        const fetchError = "Failed to load user profile.";
+
+        setError(true);
+        setErrorMessage(fetchError);
+
+        return;
+      }
+
+      if (auth) {
+        auth.setUser(fullUser);
+      } else {
+        return <ContextInitError />;
+      }
+
+      console.log("Logged in user:", fullUser);
 
       navigate("/home");
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
+
       setError(true);
-      setErrorMessage("Login failed. Check credentials.");
+
+      setErrorMessage(
+        (err as { message?: string })?.message ||
+          "Login failed. Check credentials.",
+      );
     } finally {
       setLoading(false);
     }
@@ -114,8 +175,9 @@ export default function Login() {
           {/* IDENTIFIER */}
           <div className="flex flex-col gap-2">
             <label className="font-semibold text-2xl">Email or Username</label>
+
             <input
-              className="border rounded-xl w-full px-3 py-2"
+              className="border rounded-xl w-full px-3 py-2 outline-none focus:outline-none focus:ring-0 focus:border-black"
               type="text"
               placeholder="Email or Username"
               value={identifier}
@@ -126,17 +188,38 @@ export default function Login() {
           {/* PASSWORD */}
           <div className="flex flex-col gap-2">
             <label className="font-semibold text-2xl">Password</label>
-            <input
-              className="border rounded-xl w-full px-3 py-2"
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+
+            <div className="relative flex items-center border rounded-xl w-full pr-3 focus-within:border-black">
+              <input
+                className="w-full px-3 py-2 mr-3 rounded-xl outline-none focus:outline-none focus:ring-0 border-0 bg-transparent"
+                type={passwordVisible ? "text" : "password"}
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+
+              {passwordVisible ? (
+                <Eye
+                  size={20}
+                  className="cursor-pointer select-none"
+                  onClick={() => setPasswordVisible(!passwordVisible)}
+                />
+              ) : (
+                <EyeClosed
+                  size={20}
+                  className="cursor-pointer select-none"
+                  onClick={() => setPasswordVisible(!passwordVisible)}
+                />
+              )}
+            </div>
           </div>
 
           {/* ERROR */}
-          <p className={`${error ? "text-red-600" : "text-white"} text-sm`}>
+          <p
+            className={`${
+              error ? "text-red-600" : "text-transparent"
+            } text-sm min-h-5`}
+          >
             {errorMessage}
           </p>
 

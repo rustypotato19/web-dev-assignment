@@ -53,7 +53,7 @@ export default function Profile() {
       throw new Error(data.error || "Failed to create list");
     }
 
-    const listId = data.listid;
+    const listId = data.list.listid;
 
     // update list state with new list (optimistic update)
     const newList: List = {
@@ -65,6 +65,8 @@ export default function Profile() {
       updated: new Date().toISOString(),
     };
     setLists((prev) => [...prev, newList]);
+
+    console.log("Created list with ID:", listId);
 
     // navigate to this new list
     if (listId) {

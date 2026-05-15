@@ -47,7 +47,7 @@ export async function fetchUserByUsername(username: string): Promise<User> {
 
 export async function fetchUserByUid(uid: number): Promise<User> {
     try {
-        const res = await fetch(`https://webdev.aboutkonrad.com/api/users/${encodeURIComponent(uid)}`);
+        const res = await fetch(`https://webdev.aboutkonrad.com/api/users/id/${encodeURIComponent(uid)}`);
         if (!res.ok) {
             throw new Error(`Failed to fetch user data: ${res.statusText}`);
         }
