@@ -8,6 +8,7 @@ import { Plus, Pencil, Trash2, X, Save, Link as LinkIcon } from "lucide-react";
 import { useContext, useEffect, useMemo, useState } from "react";
 
 import { useNavigate, useParams } from "react-router";
+import MyError from "../../../components/error/Error";
 
 type ListItem = {
   itemid: string;
@@ -127,7 +128,10 @@ export default function List() {
         });
       } catch (err) {
         console.error(err);
-        setError("Failed to fetch list");
+        /* setError("Failed to fetch list"); */
+        return (
+          <MyError ErrorCode={404} ErrorMessage={"Failed to get this list"} />
+        );
       } finally {
         setLoading(false);
       }
