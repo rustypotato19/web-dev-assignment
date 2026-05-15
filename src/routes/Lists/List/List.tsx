@@ -8,6 +8,7 @@ import { Plus, Pencil, Trash2, X, Save, Link as LinkIcon } from "lucide-react";
 import { useContext, useEffect, useMemo, useState } from "react";
 
 import { useNavigate, useParams } from "react-router";
+import MyError from "../../../components/error/Error";
 
 type ListItem = {
   itemid: string;
@@ -74,7 +75,9 @@ export default function List() {
 
         if (!storedUid) return;
 
-        const res = await fetch(`https://webdev.aboutkonrad.com/api/users/${storedUid}`);
+        const res = await fetch(
+          `https://webdev.aboutkonrad.com/api/users/${storedUid}`,
+        );
 
         if (!res.ok) return;
 
@@ -127,7 +130,13 @@ export default function List() {
         });
       } catch (err) {
         console.error(err);
-        setError("Failed to fetch list");
+        /* setError("Failed to fetch list"); */
+        return (
+          <MyError
+            ErrorCode={404}
+            ErrorMessage="This list could not be found. Try again later."
+          />
+        );
       } finally {
         setLoading(false);
       }
@@ -263,9 +272,12 @@ export default function List() {
     if (!list) return;
 
     try {
-      await fetch(`https://webdev.aboutkonrad.com/api/lists/delete/${list.listid}`, {
-        method: "DELETE",
-      });
+      await fetch(
+        `https://webdev.aboutkonrad.com/api/lists/delete/${list.listid}`,
+        {
+          method: "DELETE",
+        },
+      );
 
       navigate("/lists");
     } catch (err) {

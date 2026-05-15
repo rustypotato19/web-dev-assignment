@@ -316,16 +316,19 @@ export default function Home() {
     try {
       setAddingFriend(friendUid);
 
-      const res = await fetch(`https://webdev.aboutkonrad.com/api/friends/add`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const res = await fetch(
+        `https://webdev.aboutkonrad.com/api/friends/add`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_uid: user.uid,
+            friend_uid: friendUid,
+          }),
         },
-        body: JSON.stringify({
-          user_uid: user.uid,
-          friend_uid: friendUid,
-        }),
-      });
+      );
 
       const data = await res.json();
 
@@ -523,7 +526,7 @@ export default function Home() {
               </Panel>
 
               {/* LISTS */}
-              <Panel title="My Lists">
+              <Panel title="My Lists" link="/lists">
                 {lists.length === 0 ? (
                   <p className="text-gray-400 text-sm">
                     You haven't created any lists yet
@@ -578,13 +581,21 @@ export default function Home() {
 function Panel({
   title,
   children,
+  link,
 }: {
   title: string;
   children: React.ReactNode;
+  link?: string;
 }) {
   return (
     <div className="bg-white rounded-2xl shadow border">
-      <div className="p-3 font-semibold">{title}</div>
+      {link ? (
+        <a href={link} className="p-3 font-semibold">
+          {title}
+        </a>
+      ) : (
+        <div className="p-3 font-semibold">{title}</div>
+      )}
 
       <div className="flex gap-3 overflow-x-auto p-3">{children}</div>
     </div>

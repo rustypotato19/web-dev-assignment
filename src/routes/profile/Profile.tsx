@@ -53,19 +53,25 @@ export default function Profile() {
       throw new Error(data.error || "Failed to create list");
     }
 
+    const listId = data.listid;
+
     // update list state with new list (optimistic update)
     const newList: List = {
-      listid: data.listid,
+      listid: listId,
       name,
       description,
-      members: [1], // creator is first member
+      members: [1],
       created: new Date().toISOString(),
       updated: new Date().toISOString(),
     };
     setLists((prev) => [...prev, newList]);
 
     // navigate to this new list
-    navigate(`/list/${data.listid}`);
+    if (listId) {
+      setTimeout(() => {
+        navigate(`/list/${listId}`);
+      }, 1000);
+    }
   }
 
   /* ===== DELETE LIST ===== */
