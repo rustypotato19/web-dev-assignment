@@ -71,8 +71,14 @@ export function validDob(dob: Date): [boolean, string] {
 
     const minYear = 1900;
 
+    const currentYear = today.getFullYear();
+
     if (dob.getFullYear() < minYear) {
         return [false, "Date too far in past"];
+    }
+
+    if (dob.getFullYear() > currentYear) {
+        return [false, "Date cannot be in the future"];
     }
 
     if (dob > minAgeDate) {

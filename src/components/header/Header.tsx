@@ -3,6 +3,7 @@ import { CircleChevronDown } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
 import AuthContext from "../../utils/contexts/sessions/AuthContext";
 import { ContextInitError } from "../error/Error";
+import useWindowDimensions from "../../utils/helpers/WindowSize";
 
 export default function Header() {
   const auth = useContext(AuthContext);
@@ -10,6 +11,10 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const headerHeight = 96 + 32 + 32; // 96 height, 32 pt, 32 pb
+
+  const { width } = useWindowDimensions();
+
+  const isMobile = width < 640;
 
   useEffect(() => {
     //
@@ -65,11 +70,11 @@ export default function Header() {
   return (
     <>
       <div
-        className={`relative w-screen flex items-center justify-between bg-(--local-green) text-white h-24 p-8 z-30 shadow-xl`}
+        className={`relative w-screen flex items-center justify-between bg-(--local-green) text-white h-16 sm:h-24 p-6 sm:p-8 z-30 shadow-xl`}
       >
         <a
           href="/"
-          className="text-2xl font-bold hover:scale-105 transition-all duration-300"
+          className="text-xl sm:text-2xl font-bold hover:scale-105 transition-all duration-300"
         >
           mygiftlist.com
         </a>
@@ -83,8 +88,8 @@ export default function Header() {
             transition={{ duration: 0.4 }}
           >
             <CircleChevronDown
-              width={48}
-              height={48}
+              width={isMobile ? 32 : 48}
+              height={isMobile ? 32 : 48}
               strokeWidth={1}
               className="hover:bg-(--local-green-light) transition-all duration-300 rounded-full"
             />
@@ -147,6 +152,7 @@ function NavModal({ pxOffset }: { pxOffset: number }) {
             key={label}
             href={href}
             className="text-lg font-bold py-3 border-y border-(--local-green-dark) hover:bg-(--local-green-dark) transition-all"
+            // disable if link is to current page
           >
             {label}
           </a>

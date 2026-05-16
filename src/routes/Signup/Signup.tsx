@@ -18,13 +18,16 @@ import {
 import { useNavigate } from "react-router";
 import AuthContext from "../../utils/contexts/sessions/AuthContext";
 import MyError from "../../components/error/Error";
+import useWindowDimensions from "../../utils/helpers/WindowSize";
 
 export default function Signup() {
   const ctx = useContext(AuthContext);
 
   const [stepCounter, setStepCounter] = useState<number>(0);
-
   const navigate = useNavigate();
+
+  const { width } = useWindowDimensions();
+  const isMobile = width < 640;
 
   // EMAIL
   const [email, setEmail] = useState<string>("");
@@ -43,7 +46,6 @@ export default function Signup() {
   const [passwordVisible, setPasswordVisible] = useState<boolean>(false);
 
   // FULLNAME
-
   const [name, setName] = useState<string>("");
   const [nameTouched, setNameTouched] = useState<boolean>(false);
 
@@ -59,7 +61,6 @@ export default function Signup() {
   // DERIVED VALIDATION
   // =========================
 
-  // Email
   const emailIsValid = validEmail(email);
   const emailsMatch = email === emailVer && email !== "";
   const [emailExists, setEmailExists] = useState<boolean>(false);
@@ -80,24 +81,18 @@ export default function Signup() {
         const res = await fetch(
           `https://webdev.aboutkonrad.com/api/auth/ver/email/${encodeURIComponent(email)}`,
         );
-
         const data = await res.json();
-
-        console.log(data);
-
         setEmailExists(data.exists);
       } catch (err) {
         console.error(err);
-        return false;
       }
     }
     if (emailsMatch) validateEmail();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [email, emailVer]);
+  }, [email, emailVer, emailsMatch]);
 
-  // Username
   const usernameValid = validUsername(username)[0];
   const [usernameExists, setUsernameExists] = useState<boolean>(false);
+
   const usernameErrorMessage = usernameExists
     ? "Username already taken"
     : validUsername(username)[1];
@@ -112,12 +107,8 @@ export default function Signup() {
         const res = await fetch(
           `https://webdev.aboutkonrad.com/api/auth/ver/username/${encodeURIComponent(currentUsername)}`,
         );
-
         const data = await res.json();
-
-        // ignore stale responses
         if (currentUsername !== username) return;
-
         setUsernameExists(data.exists);
       } catch (err) {
         console.error(err);
@@ -127,10 +118,8 @@ export default function Signup() {
     validateUsername();
   }, [username, password]);
 
-  // Fullname
   const nameValid = validFullName(name);
 
-  // DoB
   const [dobValid, setDobValid] = useState<boolean>(false);
   const [dobErrorMessage, setDobErrorMessage] = useState<string>("OK");
 
@@ -145,7 +134,7 @@ export default function Signup() {
     validateDob();
   }, [date]);
 
-  // Password rules
+  // PASSWORD RULES
   const hasLower = /[a-z]/.test(password);
   const hasUpper = /[A-Z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
@@ -155,13 +144,9 @@ export default function Signup() {
   const passwordValid =
     hasLower && hasUpper && hasNumber && hasSpecial && hasMinLength;
 
-  // =========================
-  // STEP VALIDATION
-  // =========================
-
   const canProceedStep0 = emailIsValid && emailsMatch && !emailExists;
   const canProceedStep1 = nameValid && dobValid;
-  const canProceedStep2 = true;
+  const canProceedStep2 = true; // for design consistency, no validation on profile picture
   const canProceedStep3 = usernameValid && passwordValid && !usernameExists;
 
   const totalSteps = 4;
@@ -169,16 +154,10 @@ export default function Signup() {
 
   const [loading, setLoading] = useState<boolean>(false);
 
-  // =========================
-  // UI HELPERS
-  // =========================
-
   const bulletClass = (valid: boolean, touched: boolean) =>
-    `flex flex-row justify-start items-center gap-1 ${touched ? (valid ? "text-green-600" : "text-red-600") : "text-gray-400"} transition-all duration-300`;
-
-  // =========================
-  // FUNCTIONS
-  // =========================
+    `flex flex-row justify-start items-center gap-1 ${
+      touched ? (valid ? "text-green-600" : "text-red-600") : "text-gray-400"
+    } transition-all duration-300`;
 
   async function onAccountCreate() {
     setLoading(true);
@@ -201,27 +180,13 @@ export default function Signup() {
       );
 
       const data = await res.json();
-
       if (!data.success) throw new Error();
 
-      /* ================= SEND WELCOME EMAIL ================= */
-
-      try {
-        await fetch("https://webdev.aboutkonrad.com/api/mail/welcome", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email,
-            username,
-          }),
-        });
-      } catch (mailErr) {
-        console.error("Failed to send welcome email:", mailErr);
-      }
-
-      /* ================= LOAD USER ================= */
+      await fetch("https://webdev.aboutkonrad.com/api/mail/welcome", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, username }),
+      });
 
       const userRes = await fetch(
         `https://webdev.aboutkonrad.com/api/users/id/${data.uid}`,
@@ -230,7 +195,6 @@ export default function Signup() {
       const userData = await userRes.json();
 
       ctx?.setUser(userData);
-
       localStorage.setItem("uid", data.uid);
 
       navigate("/home");
@@ -253,7 +217,6 @@ export default function Signup() {
 
     img.onload = () => {
       const canvas = document.createElement("canvas");
-
       const MAX_WIDTH = 250;
       const scale = MAX_WIDTH / img.width;
 
@@ -261,14 +224,10 @@ export default function Signup() {
       canvas.height = img.height * scale;
 
       const ctx = canvas.getContext("2d");
-
       if (!ctx) return;
 
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      // compress to jpeg
       const compressed = canvas.toDataURL("image/jpeg", 0.7);
-
       setProfilePreview(compressed);
     };
 
@@ -278,12 +237,8 @@ export default function Signup() {
   function handleDrag(e: React.DragEvent) {
     e.preventDefault();
     e.stopPropagation();
-
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
+    if (e.type === "dragenter" || e.type === "dragover") setDragActive(true);
+    else if (e.type === "dragleave") setDragActive(false);
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -295,15 +250,6 @@ export default function Signup() {
     handleImage(file);
   }
 
-  function exportData() {
-    const data = [username, name, password, email, profilePreview];
-    return data;
-  }
-
-  // =========================
-  // Context Return
-  // =========================
-
   if (!ctx) {
     return (
       <MyError
@@ -314,19 +260,21 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gray-50 overflow-x-hidden">
       <Header />
 
-      <div className="flex-1 flex flex-col items-center justify-center">
-        <h1 className="text-4xl font-bold mb-4 text-(--local-green-dark)">
+      <div className="flex-1 flex flex-col items-center justify-center px-3 sm:px-6 py-6 sm:py-10">
+        <h1 className="text-3xl sm:text-4xl font-bold mb-2 sm:mb-4 text-(--local-green-dark)">
           Sign Up
         </h1>
-        <div className="w-90 flex flex-col items-center justify-center gap-2 mb-3">
+
+        {/* PROGRESS */}
+        <div className="w-full max-w-md flex flex-col items-center justify-center gap-2 mb-2 sm:mb-4">
           <p className="text-sm text-gray-600">
             Part {stepCounter + 1} of {totalSteps}
           </p>
 
-          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden border border-(--local-green-dark)">
+          <div className="w-[80%] sm:w-full h-2 bg-gray-200 rounded-full overflow-hidden border border-(--local-green-dark)">
             <div
               className="h-full bg-(--local-green) transition-all duration-500"
               style={{ width: `${progress}%` }}
@@ -334,28 +282,24 @@ export default function Signup() {
           </div>
         </div>
 
+        {/* CARD */}
         <AnimatePresence mode="wait">
           <motion.div
             key={stepCounter}
-            className="bg-white p-8 rounded-2xl shadow w-full max-w-sm border-4 border-(--local-green) flex flex-col gap-5"
+            className="w-full max-w-md bg-white p-5 sm:p-8 rounded-2xl shadow border-2 sm:border-4 border-(--local-green) flex flex-col gap-5"
             initial={{ x: 150, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -150, opacity: 0 }}
-            transition={{ duration: 0.75 }}
+            transition={{ duration: 0.6 }}
           >
-            {/* ========================= */}
-            {/* STEP 1: EMAIL */}
-            {/* ========================= */}
+            {/* STEP CONTENT UNCHANGED */}
             {stepCounter === 0 && (
               <div className="flex flex-col gap-6 w-full">
                 <div className="flex flex-col gap-2">
                   <h2 className="font-semibold text-2xl">Enter Email</h2>
                   <input
-                    type="email"
-                    name="email"
-                    autoComplete="on"
-                    placeholder="janedoe@gmail.com"
                     className="border rounded-xl w-full px-3 py-2"
+                    placeholder="janedoe@example.com"
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
@@ -367,11 +311,8 @@ export default function Signup() {
                 <div className="flex flex-col gap-2">
                   <h2 className="font-semibold text-2xl">Confirm Email</h2>
                   <input
-                    type="email"
-                    name="email"
-                    autoComplete="off"
-                    placeholder="janedoe@gmail.com"
                     className="border rounded-xl w-full px-3 py-2"
+                    placeholder="janedoe@example.com"
                     value={emailVer}
                     onChange={(e) => {
                       setEmailVer(e.target.value);
@@ -382,27 +323,19 @@ export default function Signup() {
 
                 <p
                   className={`text-left ${
-                    (!emailIsValid && emailTouched) ||
-                    (!emailsMatch && emailVerTouched) ||
-                    emailErrorMessage != "OK"
-                      ? "text-red-600"
-                      : "text-white"
+                    emailErrorMessage !== "OK" ? "text-red-600" : "text-white"
                   }`}
                 >
                   {emailErrorMessage}
                 </p>
 
-                {/* Next Button */}
                 <button
-                  className="text-2xl font-bold text-white bg-(--local-green) py-3 px-6 rounded-xl shadow-xl border hover:scale-105 hover:bg-(--local-green-light) transition-all duration-200 active:bg-(--local-green-dark) cursor-pointer disabled:cursor-not-allowed disabled:opacity-25 disabled:scale-100"
-                  onClick={() => {
-                    if (canProceedStep0) {
-                      setStepCounter((x) => x + 1);
-                    } else {
-                      setEmailTouched(true);
-                      setEmailVerTouched(true);
-                    }
-                  }}
+                  className="text-xl sm:text-2xl font-bold text-white bg-(--local-green) py-2 sm:py-3 px-4 sm:px-6 rounded-xl shadow-xl button"
+                  onClick={() =>
+                    canProceedStep0
+                      ? setStepCounter((x) => x + 1)
+                      : (setEmailTouched(true), setEmailVerTouched(true))
+                  }
                   disabled={!canProceedStep0}
                 >
                   Next
@@ -463,9 +396,8 @@ export default function Signup() {
                   </p>
                 </div>
 
-                {/* Next Button */}
                 <button
-                  className="text-2xl font-bold text-white bg-(--local-green) py-3 px-6 rounded-xl shadow-xl border hover:scale-105 hover:bg-(--local-green-light) transition-all duration-200 active:bg-(--local-green-dark) cursor-pointer disabled:cursor-not-allowed disabled:opacity-25 disabled:scale-100 disabled:bg-(--local-green)"
+                  className="text-xl sm:text-2xl font-bold text-white bg-(--local-green) py-2 sm:py-3 px-4 sm:px-6 rounded-xl shadow-xl border hover:scale-105 hover:bg-(--local-green-light) transition-all duration-200 active:bg-(--local-green-dark) cursor-pointer disabled:cursor-not-allowed disabled:opacity-25 disabled:scale-100 disabled:bg-(--local-green)"
                   onClick={() => {
                     if (canProceedStep1) {
                       setStepCounter((x) => x + 1);
@@ -509,7 +441,7 @@ export default function Signup() {
                   onDragLeave={handleDrag}
                   onDragOver={handleDrag}
                   onDrop={handleDrop}
-                  className={`group relative w-40 h-40 rounded-full overflow-hidden border-3 transition-all duration-300
+                  className={`group relative w-24 sm:w-40 h-24 sm:h-40 rounded-full overflow-hidden border-3 transition-all duration-300
       ${
         dragActive
           ? "border-(--local-green) scale-105 bg-green-50"
@@ -544,10 +476,10 @@ export default function Signup() {
                       <>
                         {/* Empty State */}
                         <div className="flex flex-col items-center justify-center text-gray-400 gap-2">
-                          <UserRound size={72} strokeWidth={1.5} />
+                          <UserRound size={isMobile ? 48 : 72} strokeWidth={1.5} />
 
-                          <p className="text-sm font-medium text-center px-4">
-                            Click to upload
+                          <p className="text-xs sm:text-sm font-medium text-center px-4">
+                            {isMobile ? "Upload" : "Click to upload"}
                           </p>
                         </div>
 
@@ -574,7 +506,7 @@ export default function Signup() {
                 {/* Actions */}
                 <div className="flex w-fit mx-auto">
                   <button
-                    className="text-2xl font-bold text-white bg-(--local-green) py-3 px-6 rounded-xl shadow-xl border hover:scale-105 hover:bg-(--local-green-light) transition-all duration-200 active:bg-(--local-green-dark) cursor-pointer disabled:cursor-not-allowed disabled:opacity-25 disabled:scale-100 disabled:bg-(--local-green)"
+                    className="text-xl sm:text-2xl font-bold text-white bg-(--local-green) py-2 sm:py-3 px-4 sm:px-6 rounded-xl shadow-xl border hover:scale-105 hover:bg-(--local-green-light) transition-all duration-200 active:bg-(--local-green-dark) cursor-pointer disabled:cursor-not-allowed disabled:opacity-25 disabled:scale-100 disabled:bg-(--local-green)"
                     onClick={() => {
                       if (canProceedStep2) {
                         setStepCounter((x) => x + 1);
@@ -594,8 +526,10 @@ export default function Signup() {
             {stepCounter === 3 && (
               <div className="flex flex-col gap-6 w-full">
                 {/* Username */}
-                <div className="flex flex-col gap-2">
-                  <h2 className="font-semibold text-2xl">Username</h2>
+                <div className="flex flex-col sm:gap-2">
+                  <h2 className="font-semibold text-xl sm:text-2xl">
+                    Username
+                  </h2>
                   <input
                     type="text"
                     name="username"
@@ -620,15 +554,17 @@ export default function Signup() {
                 </div>
 
                 {/* Password */}
-                <div className="flex flex-col gap-2">
-                  <h2 className="font-semibold text-2xl">Password</h2>
+                <div className="flex flex-col sm:gap-2">
+                  <h2 className="font-semibold text-xl sm:text-2xl">
+                    Password
+                  </h2>
                   <div
-                    className={`border rounded-xl w-full px-3 py-2 ${password != "" && "font-semibold"}`}
+                    className={`flex items-center justify-between border rounded-xl w-full pr-3 ${password != "" && "font-semibold"}`}
                   >
                     <input
                       type={passwordVisible ? "text" : "password"}
                       placeholder={"••••••••"}
-                      className="w-full px-3 py-2 font-semibold"
+                      className="w-full px-3 py-2 mr-2 font-semibold"
                       value={password}
                       onChange={(e) => {
                         setPassword(e.target.value);
@@ -637,13 +573,13 @@ export default function Signup() {
                     />
                     {passwordVisible ? (
                       <EyeClosed
-                        size={20}
+                        size={isMobile ? 16 : 20}
                         className="cursor-pointer"
                         onClick={() => setPasswordVisible(!passwordVisible)}
                       />
                     ) : (
                       <Eye
-                        size={20}
+                        size={isMobile ? 16 : 20}
                         className="cursor-pointer"
                         onClick={() => setPasswordVisible(!passwordVisible)}
                       />
@@ -651,53 +587,52 @@ export default function Signup() {
                   </div>
 
                   {/* Bullet validation */}
-                  <ul className="text-sm flex flex-col gap-1 mt-2 w-fit">
+                  <ul className="text-xs sm:text-sm flex flex-col sm:gap-1 mt-2 w-fit">
                     <li className={bulletClass(hasLower, passwordTouched)}>
                       {hasLower && passwordTouched ? (
-                        <CircleCheck width={20} />
+                        <CircleCheck width={isMobile ? 16 : 20} />
                       ) : (
-                        <CircleX width={20} />
+                        <CircleX width={isMobile ? 16 : 20} />
                       )}{" "}
                       Contains lowercase letter
                     </li>
                     <li className={bulletClass(hasUpper, passwordTouched)}>
                       {hasUpper && passwordTouched ? (
-                        <CircleCheck width={20} />
+                        <CircleCheck width={isMobile ? 16 : 20} />
                       ) : (
-                        <CircleX width={20} />
+                        <CircleX width={isMobile ? 16 : 20} />
                       )}{" "}
                       Contains uppercase letter
                     </li>
                     <li className={bulletClass(hasNumber, passwordTouched)}>
                       {hasNumber && passwordTouched ? (
-                        <CircleCheck width={20} />
+                        <CircleCheck width={isMobile ? 16 : 20} />
                       ) : (
-                        <CircleX width={20} />
+                        <CircleX width={isMobile ? 16 : 20} />
                       )}{" "}
                       Contains a number
                     </li>
                     <li className={bulletClass(hasSpecial, passwordTouched)}>
                       {hasSpecial && passwordTouched ? (
-                        <CircleCheck width={20} />
+                        <CircleCheck width={isMobile ? 16 : 20} />
                       ) : (
-                        <CircleX width={20} />
+                        <CircleX width={isMobile ? 16 : 20} />
                       )}{" "}
                       Contains special character
                     </li>
                     <li className={bulletClass(hasMinLength, passwordTouched)}>
                       {hasMinLength && passwordTouched ? (
-                        <CircleCheck width={20} />
+                        <CircleCheck width={isMobile ? 16 : 20} />
                       ) : (
-                        <CircleX width={20} />
+                        <CircleX width={isMobile ? 16 : 20} />
                       )}{" "}
                       At least 8 characters
                     </li>
                   </ul>
                 </div>
 
-                {/* Create Account Button */}
                 <button
-                  className="text-2xl font-bold text-white bg-(--local-green) py-3 px-6 rounded-xl shadow-xl border hover:scale-105 hover:bg-(--local-green-light) transition-all duration-200 active:bg-(--local-green-dark) cursor-pointer disabled:cursor-not-allowed disabled:opacity-25 disabled:scale-100"
+                  className="text-xl sm:text-2xl font-bold text-white bg-(--local-green) py-2 sm:py-3 px-4 sm:px-6 rounded-xl shadow-xl border hover:scale-105 hover:bg-(--local-green-light) transition-all duration-200 active:bg-(--local-green-dark) button"
                   onClick={() => {
                     if (canProceedStep3) {
                       onAccountCreate();
@@ -705,7 +640,6 @@ export default function Signup() {
                       setUsernameTouched(true);
                       setPasswordTouched(true);
                     }
-                    console.log(exportData());
                   }}
                   disabled={!canProceedStep3 && !loading}
                 >

@@ -1,9 +1,8 @@
 import Header from "../../components/header/Header";
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useContext } from "react";
 import { useNavigate } from "react-router";
 import AuthContext from "../../utils/contexts/sessions/AuthContext";
-import { useContext } from "react";
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -14,67 +13,80 @@ export default function Landing() {
 
     // redirect if user is logged in
     console.log("is loggedin?", auth.isLoggedIn);
+
     if ((auth.isLoggedIn && auth.user) || localStorage.getItem("uid")) {
       navigate("/home");
     }
   }, [auth, navigate]);
 
   return (
-    <div>
+    <div className="min-h-screen overflow-x-hidden bg-white">
       <Header />
 
-      <div className="w-screen min-h-60 h-fit flex flex-col justify-center items-center gap-6 z-0">
-        <h1 className="text-8xl font-bold text-(--local-green-dark)">
-          mygiftlist.com
-        </h1>
-        <p className="text-3xl">Your one stop for easy gift collaboration</p>
-      </div>
+      {/* HERO */}
+      <section className="w-full px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 lg:pt-24 pb-10">
+        <div className="max-w-7xl mx-auto flex flex-col items-center justify-center text-center gap-5 sm:gap-6">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl xl:text-8xl font-bold text-(--local-green-dark) wrap-break-word leading-tight">
+            mygiftlist.com
+          </h1>
 
-      <div className="text-white flex flex-row items-center justify-around w-1/3 mx-auto min-h-20 h-fit">
-        <a
-          href="/login"
-          className="text-xl min-w-36 text-center rounded-3xl border-3 border-(--local-green-dark) bg-(--local-green-light) px-5 py-3 font-bold hover:scale-105 duration-300 transition-all"
-        >
-          Login
-        </a>
+          <p className="text-lg sm:text-2xl lg:text-3xl text-gray-700 max-w-4xl leading-relaxed">
+            Your one stop for easy gift collaboration
+          </p>
 
-        <a
-          href="/signup"
-          className="text-xl min-w-36 text-center rounded-3xl border-3 border-black bg-(--local-green-dark) px-5 py-3 font-bold hover:scale-105 duration-300 transition-all"
-        >
-          Sign Up
-        </a>
-      </div>
-
-      <div className="w-screen min-h-100 h-fit flex justify-center items-center">
-        <div className="w-2/3 flex flex-row justify-around items-center gap-12">
-          <AnimatePresence mode="sync">
-            <motion.div
-              initial={{ x: -300, opacity: 0 }}
-              whileInView={{ x: 0, opacity: 1 }}
-              transition={{ duration: 1.5 }}
-              className="w-full"
+          {/* BUTTONS */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2 w-full sm:w-auto">
+            <a
+              href="/login"
+              className="w-full sm:w-auto text-lg sm:text-xl min-w-55 text-center rounded-3xl border-2 sm:border-3 border-(--local-green-dark) bg-(--local-green-light) px-6 py-3 font-bold hover:scale-105 duration-300 transition-all text-white"
             >
-              <ShowcaseBox
-                title="Make lists"
-                description="Create lists for your friends and family to see"
-              />
-            </motion.div>
+              Login
+            </a>
 
-            <motion.div
-              initial={{ x: 300, opacity: 0 }}
-              whileInView={{ x: 0, opacity: 1 }}
-              transition={{ duration: 1.5 }}
-              className="w-full"
+            <a
+              href="/signup"
+              className="w-full sm:w-auto text-lg sm:text-xl min-w-55 text-center rounded-3xl border-2 sm:border-3 border-black bg-(--local-green-dark) px-6 py-3 font-bold hover:scale-105 duration-300 transition-all text-white"
             >
-              <ShowcaseBox
-                title="Mark other's items"
-                description="See and mark off your friends' and families' lists - completely anonymously"
-              />
-            </motion.div>
-          </AnimatePresence>
+              Sign Up
+            </a>
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* SHOWCASE */}
+      <section className="w-full px-4 sm:px-6 lg:px-8 pb-12 sm:pb-20">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-10 items-stretch">
+            <AnimatePresence mode="sync">
+              <motion.div
+                initial={{ x: -300, opacity: 0 }}
+                whileInView={{ x: 0, opacity: 1 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{ duration: 1.1 }}
+                className="w-full"
+              >
+                <ShowcaseBox
+                  title="Make lists"
+                  description="Create lists for your friends and family to see"
+                />
+              </motion.div>
+
+              <motion.div
+                initial={{ x: 300, opacity: 0 }}
+                whileInView={{ x: 0, opacity: 1 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{ duration: 1.1 }}
+                className="w-full"
+              >
+                <ShowcaseBox
+                  title="Mark other's items"
+                  description="See and mark off your friends' and families' lists - completely anonymously"
+                />
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
@@ -87,10 +99,18 @@ type ShowcaseBoxProps = {
 
 function ShowcaseBox({ title, description, image }: ShowcaseBoxProps) {
   return (
-    <div className="w-full h-80 rounded-xl shadow-lg flex flex-col items-center justify-center gap-4 p-6 border">
-      <h2 className="text-2xl font-bold">{title}</h2>
-      <p className="text-center">{description}</p>
-      {image && <img src={image} className="w-24 h-24" />}
+    <div className="w-full min-h-65 sm:min-h-80 lg:min-h-90 rounded-2xl shadow-lg flex flex-col items-center justify-center gap-4 sm:gap-6 p-6 sm:p-8 border bg-white text-center">
+      <h2 className="text-2xl sm:text-3xl font-bold wrap-break-word">
+        {title}
+      </h2>
+
+      <p className="text-base sm:text-lg text-gray-700 max-w-xl leading-relaxed">
+        {description}
+      </p>
+
+      {image && (
+        <img src={image} className="w-20 h-20 sm:w-24 sm:h-24 object-contain" />
+      )}
     </div>
   );
 }
