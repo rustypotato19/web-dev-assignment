@@ -59,7 +59,6 @@ export default function Lists() {
           }
 
           const data = await res.json();
-
           fetchUid = data.uid;
         } catch (error) {
           console.error("Error fetching user data:", error);
@@ -78,7 +77,38 @@ export default function Lists() {
 
         const listsData = await listsRes.json();
 
-        setUserLists(listsData);
+        // 🔥 FETCH MEMBERS FOR EACH LIST
+        const listsWithMembers = await Promise.all(
+          listsData.map(async (list: List) => {
+            try {
+              const memberRes = await fetch(
+                `https://webdev.aboutkonrad.com/api/lists/members/${list.listid}`,
+              );
+
+              if (!memberRes.ok) {
+                throw new Error(
+                  `Failed to fetch members for list ${list.listid}`,
+                );
+              }
+
+              const membersData = await memberRes.json();
+
+              return {
+                ...list,
+                members: membersData ?? [],
+              };
+            } catch (err) {
+              console.error(err);
+
+              return {
+                ...list,
+                members: [],
+              };
+            }
+          }),
+        );
+
+        setUserLists(listsWithMembers);
       } catch (error) {
         console.error("Error fetching lists:", error);
       }
@@ -205,8 +235,7 @@ export default function Lists() {
           {userLists && userLists.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {userLists.map((list) => (
-                <a
-                  href={`/list/${list.listid}`}
+                <div
                   key={list.listid}
                   className="border rounded-2xl p-5 hover:shadow-md hover:-translate-y-1 transition-all duration-300 bg-white cursor-pointer"
                 >
@@ -224,13 +253,21 @@ export default function Lists() {
 
                   <div className="flex items-center gap-2 mt-5 text-sm text-gray-500">
                     <Users size={16} />
-                    <p>{list.members?.length ?? 0} members</p>
+                    <p>
+                      {list.members?.length ?? 0} member
+                      {list.members?.length > 1 && "s"}
+                    </p>
                   </div>
 
-                  <button className="mt-5 px-4 py-2 rounded-xl border border-(--local-green)/20 text-(--local-green-dark) hover:bg-(--local-green) hover:text-white transition-all duration-300 text-sm font-medium cursor-pointer">
+                  <button
+                    onClick={() => {
+                      navigate(`/list/${list.listid}`);
+                    }}
+                    className="mt-5 px-4 py-2 rounded-xl border border-(--local-green)/20 text-(--local-green-dark) hover:bg-(--local-green) hover:text-white transition-all duration-300 text-sm font-medium cursor-pointer"
+                  >
                     View List
                   </button>
-                </a>
+                </div>
               ))}
             </div>
           ) : (

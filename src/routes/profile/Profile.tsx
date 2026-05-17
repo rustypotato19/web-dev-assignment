@@ -1,5 +1,7 @@
 import Header from "../../components/header/Header";
-import AuthContext from "../../utils/contexts/sessions/AuthContext";
+import AuthContext, {
+  type AuthContextType,
+} from "../../utils/contexts/sessions/AuthContext";
 import MyError, { ContextInitError } from "../../components/error/Error";
 import { useNavigate, useParams } from "react-router";
 import { CalendarDays, Users, UserRound, Plus, Trash2 } from "lucide-react";
@@ -101,8 +103,38 @@ export default function Profile() {
         const listRes = await fetch(
           `https://webdev.aboutkonrad.com/api/lists/user/${fetchedUser.uid}`,
         );
+
         const listData = await listRes.json();
-        setLists(listData || []);
+
+        const listsWithMembers = await Promise.all(
+          (listData || []).map(async (list: List) => {
+            try {
+              const res = await fetch(
+                `https://webdev.aboutkonrad.com/api/lists/members/${list.listid}`,
+              );
+
+              const members = await res.json();
+
+              return {
+                ...list,
+                members: Array.isArray(members) ? members : [],
+              };
+            } catch (err) {
+              console.error(
+                "Failed to load members for list",
+                list.listid,
+                err,
+              );
+
+              return {
+                ...list,
+                members: [],
+              };
+            }
+          }),
+        );
+
+        setLists(listsWithMembers);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Unknown error");
       } finally {
@@ -160,6 +192,7 @@ export default function Profile() {
         deleteList={deleteList}
         friends={friends}
         isMobile={isMobile}
+        ctx={ctx}
       />
     </div>
   );
@@ -177,6 +210,7 @@ function ProfileLayout({
   deleteList,
   friends,
   isMobile,
+  ctx,
 }: {
   user: User;
   lists: List[];
@@ -187,9 +221,42 @@ function ProfileLayout({
   deleteList: (id: number) => Promise<void>;
   friends: number[];
   isMobile: boolean;
+  ctx: AuthContextType;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [listIdToDelete, setListIdToDelete] = useState<number | null>(null);
+
+  const [error, setError] = useState<string | null>(null);
+
+  async function joinList(uid: number, listid: number) {
+    try {
+      const res = await fetch("https://webdev.aboutkonrad.com/api/lists/join", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          uid,
+          listid,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to join list");
+      }
+
+      setError(null);
+      return data; // { success: true }
+    } catch (err) {
+      console.error("JOIN LIST ERROR:", err);
+      setError("Failed");
+      return { success: false, error: err };
+    }
+  }
+
+  const currentUid = ctx?.user?.uid;
 
   return (
     <>
@@ -293,12 +360,28 @@ function ProfileLayout({
                     {list.description || "No description"}
                   </p>
 
+                  <p className="text-xs text-gray-600 mt-1">
+                    {list.members.length ?? 0} member
+                    {list.members.length > 0 && "s"}
+                  </p>
+
                   <a
                     href={`/list/${list.listid}`}
                     className="inline-block mt-3 text-xs md:text-sm bg-(--local-green) text-white px-3 py-1 rounded"
                   >
                     Open List
                   </a>
+                  {!isOwn && !list.members.includes(currentUid ?? -1) && (
+                    <button
+                      onClick={() => {
+                        joinList(currentUid ?? -1, list.listid);
+                        console.log(list.members.includes(currentUid ?? -1));
+                      }}
+                      className="inline-block mt-3 text-xs md:text-sm bg-(--local-green) text-white px-3 py-1 rounded ml-2"
+                    >
+                      {error ?? "Join List"}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

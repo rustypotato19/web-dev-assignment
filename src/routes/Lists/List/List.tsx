@@ -8,7 +8,7 @@ import { Plus, Pencil, Trash2, X, Save, Link as LinkIcon } from "lucide-react";
 import { useContext, useEffect, useMemo, useState } from "react";
 
 import { useNavigate, useParams } from "react-router";
-import MyError from "../../../components/error/Error";
+import MyError, { Error404 } from "../../../components/error/Error";
 
 type ListItem = {
   itemid: string;
@@ -36,6 +36,10 @@ export default function List() {
   const [error, setError] = useState<string | null>(null);
 
   const [currentUid, setCurrentUid] = useState<number | null>(null);
+
+  const members = list?.members ?? [];
+  const memberCount = members.length;
+  const isMember = currentUid ? members.includes(currentUid) : false;
 
   /* ================= MODALS ================= */
 
@@ -105,23 +109,32 @@ export default function List() {
       }
 
       try {
-        const [listRes, itemsRes] = await Promise.all([
+        const [listRes, itemsRes, membersRes] = await Promise.all([
           fetch(
             `https://webdev.aboutkonrad.com/api/lists/user/list/${encodeURIComponent(listid)}`,
           ),
           fetch(
             `https://webdev.aboutkonrad.com/api/lists/items/${encodeURIComponent(listid)}`,
           ),
+          fetch(
+            `https://webdev.aboutkonrad.com/api/lists/members/${encodeURIComponent(listid)}`,
+          ),
         ]);
 
         if (!listRes.ok) {
-          throw new Error("Failed to fetch list");
+          return <Error404 />;
         }
 
         const listData = await listRes.json();
         const itemsData = await itemsRes.json();
+        const membersData = await membersRes.json();
 
-        setList(listData);
+        const normalizedList: List = {
+          ...listData,
+          members: Array.isArray(membersData) ? membersData : [],
+        };
+
+        setList(normalizedList);
         setItems(itemsData);
 
         setListForm({
@@ -285,7 +298,45 @@ export default function List() {
     }
   }
 
+  /* ================= JOIN LIST ================= */
+
+  async function joinList(uid: number, listid: number) {
+    try {
+      const res = await fetch("https://webdev.aboutkonrad.com/api/lists/join", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          uid,
+          listid,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to join list");
+      }
+
+      setError(null);
+      return data; // { success: true }
+    } catch (err) {
+      console.error("JOIN LIST ERROR:", err);
+      setError("Failed");
+      return { success: false, error: err };
+    }
+  }
+
   /* ================= UI ================= */
+
+  if (!list)
+    return (
+      <MyError
+        ErrorCode={404}
+        ErrorMessage="This list could not be found. Try again later."
+      />
+    );
 
   return (
     <div className="min-h-screen">
@@ -305,6 +356,34 @@ export default function List() {
 
                 <p className="text-zinc-400 mt-3">
                   {list.description || "No description"}
+                </p>
+              </div>
+
+              <div className="flex flex-col items-center justify-center">
+                {!isOwner && currentUid && !isMember && (
+                  <button
+                    onClick={async () => {
+                      await joinList(currentUid, list.listid);
+
+                      // optimistic UI update
+                      setList((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              members: prev.members.includes(currentUid)
+                                ? prev.members
+                                : [...prev.members, currentUid],
+                            }
+                          : prev,
+                      );
+                    }}
+                    className="p-3 rounded-xl font-semibold bg-(--local-green) text-white transition border button"
+                  >
+                    {isMember ? "Joined" : "Join List"}
+                  </button>
+                )}
+                <p>
+                  {memberCount} member{memberCount > 1 && "s"}
                 </p>
               </div>
 

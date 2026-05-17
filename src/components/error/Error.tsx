@@ -46,7 +46,7 @@ export default function MyError({ ErrorCode, ErrorMessage }: Props) {
 }
 
 export function Error404() {
-  return <MyError ErrorCode={404} ErrorMessage="Page not found." />;
+  return <MyError ErrorCode={404} />;
 }
 
 export function Error500() {
