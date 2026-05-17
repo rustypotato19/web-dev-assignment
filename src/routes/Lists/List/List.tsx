@@ -412,7 +412,8 @@ export default function List() {
 
           <button
             onClick={createItem}
-            className="w-full bg-(--local-green) hover:bg-(--local-green-dark) transition-all duration-300 text-white rounded-xl py-3 font-semibold mt-5 cursor-pointer"
+            disabled={itemForm.name === null || itemForm.name === ""}
+            className="w-full bg-(--local-green) hover:bg-(--local-green-dark) transition-all duration-300 text-white rounded-xl py-3 font-semibold mt-5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-(--local-green)"
           >
             Create
           </button>
@@ -427,7 +428,8 @@ export default function List() {
 
           <button
             onClick={updateItem}
-            className="w-full bg-(--local-green) hover:bg-(--local-green-dark) transition-all duration-300 text-white rounded-xl py-3 font-semibold mt-5 flex items-center justify-center gap-2 cursor-pointer"
+            disabled={itemForm.name === null || itemForm.name === ""}
+            className="w-full bg-(--local-green) hover:bg-(--local-green-dark) transition-all duration-300 text-white rounded-xl py-3 font-semibold mt-5 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-(--local-green)"
           >
             <Save size={18} />
             Save Changes
@@ -474,13 +476,14 @@ export default function List() {
                 description: e.target.value,
               }))
             }
-            placeholder="Description"
+            placeholder="Description (optional)"
             className="w-full border rounded-xl px-4 py-3 min-h-30"
           />
 
           <button
             onClick={updateList}
-            className="w-full border bg-(--local-green) hover:bg-(--local-green-dark) transition-all duration-300 text-white rounded-xl py-3 font-semibold mt-5 cursor-pointer"
+            disabled={listForm.name === null || listForm.name === ""}
+            className="w-full border bg-(--local-green) hover:bg-(--local-green-dark) transition-all duration-300 text-white rounded-xl py-3 font-semibold mt-5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-(--local-green)"
           >
             Save
           </button>
@@ -548,7 +551,7 @@ function ItemForm({
             description: e.target.value,
           }))
         }
-        placeholder="Description"
+        placeholder="Description (optional)"
         className="w-full border rounded-xl px-4 py-3 min-h-30"
       />
 

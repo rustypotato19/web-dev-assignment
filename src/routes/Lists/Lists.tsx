@@ -110,13 +110,16 @@ export default function Lists() {
         return;
       }
 
-      const res = await fetch(`https://webdev.aboutkonrad.com/api/lists/create/${uid}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const res = await fetch(
+        `https://webdev.aboutkonrad.com/api/lists/create/${uid}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(createForm),
         },
-        body: JSON.stringify(createForm),
-      });
+      );
 
       if (!res.ok) {
         throw new Error("Failed to create list");
@@ -333,7 +336,8 @@ export default function Lists() {
 
                 <button
                   onClick={createList}
-                  className="px-5 py-3 rounded-xl bg-(--local-green) text-white hover:bg-(--local-green-light) hover:scale-105 transition-all duration-300 shadow-sm cursor-pointer flex items-center gap-2"
+                  disabled={!createForm.name || createForm.name === ""}
+                  className="px-5 py-3 rounded-xl bg-(--local-green) text-white hover:bg-(--local-green-light) hover:scale-105 transition-all duration-300 shadow-sm cursor-pointer flex items-center gap-2 disabled:bg-neutral-200 disabled:cursor-not-allowed"
                 >
                   <Plus size={18} />
                   Create List

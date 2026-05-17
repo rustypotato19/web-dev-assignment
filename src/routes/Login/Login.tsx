@@ -220,7 +220,7 @@ export default function Login() {
             {/* BUTTON */}
             <button
               onClick={handleLogin}
-              disabled={!identifier || !password || loading}
+              disabled={!identifier || !password || loading || error}
               className="w-full text-lg sm:text-xl font-bold text-white bg-(--local-green) py-3 px-6 rounded-xl shadow-xl hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               {loading ? "Signing in..." : "Sign In"}

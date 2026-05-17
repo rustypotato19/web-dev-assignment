@@ -487,10 +487,13 @@ export default function Home() {
                               {u.profile_image ? (
                                 <img
                                   src={u.profile_image}
-                                  className="w-12 h-12 rounded-full object-cover shrink-0"
+                                  className="w-12 h-12 rounded-full object-cover shrink-0 border"
                                 />
                               ) : (
-                                <CircleUserRound className="w-12 h-12 text-gray-400 shrink-0" />
+                                <CircleUserRound
+                                  strokeWidth={0.9}
+                                  className="w-12 h-12 text-gray-400 shrink-0"
+                                />
                               )}
 
                               <div className="min-w-0">
@@ -513,7 +516,7 @@ export default function Home() {
                               <button
                                 onClick={() => addFriend(u.uid)}
                                 disabled={addingFriend === u.uid}
-                                className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-(--local-green) text-white hover:bg-(--local-green-light) transition-all cursor-pointer disabled:opacity-50 w-fit sm:w-full shrink-0"
+                                className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-(--local-green) text-white hover:bg-(--local-green-light) transition-all cursor-pointer disabled:opacity-50 w-fit shrink-0"
                               >
                                 <UserPlus size={16} />
                                 Add Friend
