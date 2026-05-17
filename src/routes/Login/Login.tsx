@@ -2,47 +2,61 @@ import { useContext, useEffect, useState } from "react";
 import Header from "../../components/header/Header";
 import { useNavigate } from "react-router";
 import AuthContext from "../../utils/contexts/sessions/AuthContext";
-import MyError from "../../components/error/Error";
+import MyError, { ContextInitError } from "../../components/error/Error";
 import {
   validEmail,
   validLoginPassword,
   validUsername,
 } from "../../utils/auth/LogonHandler";
 import { fetchUserByUid } from "../../utils/db/Db";
+import { Eye, EyeClosed } from "lucide-react";
 
 export default function Login() {
   const auth = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const [identifier, setIdentifier] = useState(""); // email OR username
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string>("OK");
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
   useEffect(() => {
     function validateIdentifierAndPass() {
+      if (!identifier && !password) {
+        setError(false);
+        setErrorMessage("");
+        return;
+      }
+
       const isEmail = identifier.includes("@");
 
-      if (isEmail && !validEmail(identifier)) {
-        setErrorMessage("Invalid email format");
-        setError(true);
-      } else if (!isEmail && !validUsername(identifier)[0]) {
-        setErrorMessage(validUsername(identifier)[1]);
-        setError(true);
-      } else if (
-        !validLoginPassword(password) &&
-        identifier &&
-        password.length > 0
-      ) {
+      if (identifier) {
+        if (isEmail && !validEmail(identifier)) {
+          setErrorMessage("Invalid email format");
+          setError(true);
+          return;
+        }
+
+        if (!isEmail && !validUsername(identifier)[0]) {
+          setErrorMessage(validUsername(identifier)[1]);
+          setError(true);
+          return;
+        }
+      }
+
+      if (password && password.length > 0 && !validLoginPassword(password)) {
         setErrorMessage("Password too short");
         setError(true);
-      } else {
-        setError(false);
-        setErrorMessage("OK");
+        return;
       }
+
+      setError(false);
+      setErrorMessage("");
     }
+
     validateIdentifierAndPass();
   }, [identifier, password]);
 
@@ -58,13 +72,20 @@ export default function Login() {
   async function handleLogin() {
     setLoading(true);
     setError(false);
+    setErrorMessage("");
 
     try {
+      if (!identifier || !password) {
+        setError(true);
+        setErrorMessage("Please enter your credentials.");
+        return;
+      }
+
       const isEmail = identifier.includes("@");
 
       const endpoint = isEmail
-        ? "http://localhost:9003/api/auth/login/email"
-        : "http://localhost:9003/api/auth/login/username";
+        ? "https://webdev.aboutkonrad.com/api/auth/login/email"
+        : "https://webdev.aboutkonrad.com/api/auth/login/username";
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -72,91 +93,148 @@ export default function Login() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: isEmail ? identifier : undefined,
-          username: !isEmail ? identifier : undefined,
+          ...(isEmail
+            ? { email: identifier.trim() }
+            : { username: identifier.trim() }),
           password,
         }),
       });
 
-      const data = await res.json();
+      let data = null;
 
-      if (!data.success) {
-        throw new Error("Invalid credentials");
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error("Invalid server response");
       }
 
-      auth?.setUser(await fetchUserByUid(data.user.uid));
+      if (!res.ok || !data?.success) {
+        const serverMessage =
+          data?.error || data?.message || "Login failed. Check credentials.";
 
-      console.log("User logged in?", auth?.isLoggedIn);
-      console.log("Context user object?", auth?.user);
+        setError(true);
+        setErrorMessage(serverMessage);
+        return;
+      }
 
-      localStorage.setItem("uid", data.user.uid);
+      if (!data?.user?.uid) {
+        throw new Error("Missing user data");
+      }
+
+      localStorage.setItem("uid", String(data.user.uid));
+
+      const fullUser = await fetchUserByUid(data.user.uid);
+
+      if (!fullUser) {
+        setError(true);
+        setErrorMessage("Failed to load user profile.");
+        return;
+      }
+
+      if (auth) {
+        auth.setUser(fullUser);
+      } else {
+        <ContextInitError />;
+      }
 
       navigate("/home");
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
+
       setError(true);
-      setErrorMessage("Login failed. Check credentials.");
+      setErrorMessage(
+        (err as { message?: string })?.message ||
+          "Login failed. Check credentials.",
+      );
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gray-50 overflow-x-hidden">
       <Header />
 
-      <div className="flex-1 flex flex-col items-center justify-center">
-        <h1 className="text-4xl font-bold mb-4 text-(--local-green-dark)">
-          Login
-        </h1>
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-10">
+        <div className="w-full max-w-md flex flex-col items-center">
+          <h1 className="text-3xl sm:text-4xl font-bold mb-6 text-(--local-green-dark) text-center">
+            Login
+          </h1>
 
-        <div className="bg-white p-8 rounded-2xl shadow w-full max-w-sm border-4 border-(--local-green) flex flex-col gap-4">
-          {/* IDENTIFIER */}
-          <div className="flex flex-col gap-2">
-            <label className="font-semibold text-2xl">Email or Username</label>
-            <input
-              className="border rounded-xl w-full px-3 py-2"
-              type="text"
-              placeholder="Email or Username"
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-            />
+          <div className="bg-white p-6 sm:p-8 rounded-2xl shadow w-full border-2 sm:border-4 border-(--local-green) flex flex-col gap-5">
+            {/* IDENTIFIER */}
+            <div className="flex flex-col gap-2">
+              <label className="font-semibold text-lg sm:text-2xl">
+                Email or Username
+              </label>
+
+              <input
+                className="border rounded-xl w-full px-3 py-3 text-sm sm:text-base outline-none focus:border-black"
+                type="text"
+                placeholder="Email or Username"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+              />
+            </div>
+
+            {/* PASSWORD */}
+            <div className="flex flex-col gap-2">
+              <label className="font-semibold text-lg sm:text-2xl">
+                Password
+              </label>
+
+              <div className="relative flex items-center border rounded-xl w-full pr-3 focus-within:border-black">
+                <input
+                  className="w-full px-3 py-3 text-sm sm:text-base rounded-xl outline-none border-0 bg-transparent"
+                  type={passwordVisible ? "text" : "password"}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+
+                {passwordVisible ? (
+                  <Eye
+                    size={20}
+                    className="cursor-pointer shrink-0"
+                    onClick={() => setPasswordVisible(!passwordVisible)}
+                  />
+                ) : (
+                  <EyeClosed
+                    size={20}
+                    className="cursor-pointer shrink-0"
+                    onClick={() => setPasswordVisible(!passwordVisible)}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* ERROR */}
+            <p
+              className={`text-sm min-h-5 ${
+                error ? "text-red-600" : "text-transparent"
+              }`}
+            >
+              {errorMessage}
+            </p>
+
+            {/* BUTTON */}
+            <button
+              onClick={handleLogin}
+              disabled={!identifier || !password || loading}
+              className="w-full text-lg sm:text-xl font-bold text-white bg-(--local-green) py-3 px-6 rounded-xl shadow-xl hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            >
+              {loading ? "Signing in..." : "Sign In"}
+            </button>
           </div>
 
-          {/* PASSWORD */}
-          <div className="flex flex-col gap-2">
-            <label className="font-semibold text-2xl">Password</label>
-            <input
-              className="border rounded-xl w-full px-3 py-2"
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-
-          {/* ERROR */}
-          <p className={`${error ? "text-red-600" : "text-white"} text-sm`}>
-            {errorMessage}
-          </p>
-
-          {/* BUTTON */}
-          <button
-            onClick={handleLogin}
-            disabled={!identifier || !password || loading}
-            className="text-2xl font-bold text-white bg-(--local-green) py-3 px-6 rounded-xl shadow-xl hover:scale-105 transition-all disabled:opacity-50 cursor-pointer"
+          {/* SIGNUP LINK */}
+          <a
+            href="/signup"
+            className="mt-5 text-(--local-green) font-bold hover:scale-105 transition-all text-sm sm:text-base"
           >
-            {loading ? "Signing in..." : "Sign In"}
-          </button>
+            Don't have an account? Sign up
+          </a>
         </div>
-
-        {/* SIGNUP LINK */}
-        <a
-          href="/signup"
-          className="mt-4 text-(--local-green) font-bold hover:scale-105 transition-all"
-        >
-          Don't have an account? Sign up
-        </a>
       </div>
     </div>
   );

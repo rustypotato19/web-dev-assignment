@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "upload": "scp -r dist/* rusty@10.8.0.1:/home/rusty/temp-transfer-folder/"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",

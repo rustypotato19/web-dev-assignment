@@ -6,15 +6,15 @@ import {
   Mail,
   Calendar,
   Lock,
-  Image,
+  Image as ImageIcon,
   Trash2,
-  Save,
   AlertTriangle,
 } from "lucide-react";
 
 import Header from "../../components/header/Header";
 import AuthContext from "../../utils/contexts/sessions/AuthContext";
 import { ContextInitError } from "../../components/error/Error";
+import useWindowDimensions from "../../utils/helpers/WindowSize";
 
 type UserData = {
   uid: number;
@@ -26,19 +26,21 @@ type UserData = {
   created: string;
 };
 
+type SaveState = "idle" | "saving" | "success" | "error";
+
 export default function Settings() {
   const ctx = useContext(AuthContext);
-
   const navigate = useNavigate();
 
-  const [user, setUser] = useState<UserData | null>(null);
+  const { width } = useWindowDimensions();
+  const isMobile = width < 640;
 
+  const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
-
   const [dragActive, setDragActive] = useState(false);
 
   const [forms, setForms] = useState({
@@ -50,6 +52,17 @@ export default function Settings() {
     password: "",
   });
 
+  const [saveState, setSaveState] = useState<Record<string, SaveState>>({
+    username: "idle",
+    fullname: "idle",
+    email: "idle",
+    date_of_birth: "idle",
+    profile_image: "idle",
+    password: "idle",
+  });
+
+  /* ================= FETCH USER ================= */
+
   useEffect(() => {
     async function fetchUser() {
       try {
@@ -59,17 +72,13 @@ export default function Settings() {
           uid = ctx.user.uid;
         } else {
           const storedUid = localStorage.getItem("uid");
-
           if (!storedUid) return;
-
           uid = parseInt(storedUid, 10);
         }
 
-        const res = await fetch(`http://localhost:9003/api/users/${uid}`);
-
-        if (!res.ok) {
-          throw new Error("Failed to fetch user");
-        }
+        const res = await fetch(
+          `https://webdev.aboutkonrad.com/api/users/id/${uid}`,
+        );
 
         const data = await res.json();
 
@@ -97,24 +106,20 @@ export default function Settings() {
     fetchUser();
   }, [ctx]);
 
+  /* ================= DRAG + IMAGE ================= */
+
   function handleDrag(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     e.stopPropagation();
-
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
+    setDragActive(e.type !== "dragleave");
   }
 
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     e.stopPropagation();
-
     setDragActive(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+    if (e.dataTransfer.files?.[0]) {
       handleImage(e.dataTransfer.files[0]);
     }
   }
@@ -122,230 +127,255 @@ export default function Settings() {
   function handleImage(file: File | null) {
     if (!file) return;
 
+    const img = new Image();
     const reader = new FileReader();
 
-    reader.onloadend = () => {
-      const result = reader.result as string;
+    reader.onload = (e) => {
+      img.src = e.target?.result as string;
+    };
 
-      setProfilePreview(result);
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const MAX_WIDTH = 250;
+      const scale = MAX_WIDTH / img.width;
 
-      setForms((prev) => ({
-        ...prev,
-        profile_image: result,
-      }));
+      canvas.width = MAX_WIDTH;
+      canvas.height = img.height * scale;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const compressed = canvas.toDataURL("image/jpeg", 0.7);
+      setProfilePreview(compressed);
     };
 
     reader.readAsDataURL(file);
   }
 
+  /* ================= OPTIMISTIC SAVE HELPERS ================= */
+
+  function setSaving(key: string) {
+    setSaveState((p) => ({ ...p, [key]: "saving" }));
+  }
+
+  function setSuccess(key: string) {
+    setSaveState((p) => ({ ...p, [key]: "success" }));
+    setTimeout(() => setSaveState((p) => ({ ...p, [key]: "idle" })), 1500);
+  }
+
+  function setErrorState(key: string) {
+    setSaveState((p) => ({ ...p, [key]: "error" }));
+    setTimeout(() => setSaveState((p) => ({ ...p, [key]: "idle" })), 2000);
+  }
+
+  /* ================= UPDATE FUNCTIONS ================= */
+
   async function updateUsername() {
     if (!user) return;
 
+    setSaving("username");
+
     try {
       const res = await fetch(
-        `http://localhost:9003/api/users/username/${user.username}`,
+        `https://webdev.aboutkonrad.com/api/users/username/${user.username}`,
         {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            newUsername: forms.username,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ newUsername: forms.username }),
         },
       );
 
       const data = await res.json();
 
       setUser(data);
+
+      // 🔥 IMPORTANT: optimistic auth fix
+      if (ctx?.setUser) {
+        ctx.setUser(data);
+      }
+
+      localStorage.setItem("uid", String(data.uid));
+
+      setSuccess("username");
+
+      // fix stale routing issue
+      //navigate(`/profile/${data.username}`);
     } catch (err) {
       console.error(err);
+      setErrorState("username");
     }
   }
 
   async function updateFullname() {
     if (!user) return;
+    setSaving("fullname");
 
     try {
       const res = await fetch(
-        `http://localhost:9003/api/users/fullname/${user.uid}`,
+        `https://webdev.aboutkonrad.com/api/users/fullname/${user.uid}`,
         {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            newFullname: forms.fullname,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ newFullname: forms.fullname }),
         },
       );
 
       const data = await res.json();
-
       setUser(data);
+      ctx?.setUser?.(data);
+
+      setSuccess("fullname");
     } catch (err) {
-      console.error(err);
+      setErrorState(`fullname, ${err}`);
     }
   }
 
   async function updateEmail() {
     if (!user) return;
+    setSaving("email");
 
     try {
       const res = await fetch(
-        `http://localhost:9003/api/users/email/${user.uid}`,
+        `https://webdev.aboutkonrad.com/api/users/email/${user.uid}`,
         {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            newEmail: forms.email,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ newEmail: forms.email }),
         },
       );
 
       const data = await res.json();
-
       setUser(data);
-    } catch (err) {
-      console.error(err);
+      ctx?.setUser?.(data);
+
+      setSuccess("email");
+    } catch {
+      setErrorState("email");
     }
   }
 
   async function updateDOB() {
     if (!user) return;
+    setSaving("date_of_birth");
 
     try {
       const res = await fetch(
-        `http://localhost:9003/api/users/date-of-birth/${user.uid}`,
+        `https://webdev.aboutkonrad.com/api/users/date-of-birth/${user.uid}`,
         {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            newDateOfBirth: forms.date_of_birth,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ newDateOfBirth: forms.date_of_birth }),
         },
       );
 
       const data = await res.json();
-
       setUser(data);
-    } catch (err) {
-      console.error(err);
+      ctx?.setUser?.(data);
+
+      setSuccess("date_of_birth");
+    } catch {
+      setErrorState("date_of_birth");
     }
   }
 
   async function updateProfileImage() {
     if (!user) return;
+    setSaving("profile_image");
 
     try {
       const res = await fetch(
-        `http://localhost:9003/api/users/profile-image/${user.uid}`,
+        `https://webdev.aboutkonrad.com/api/users/profile-image/${user.uid}`,
         {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            newProfileImage: forms.profile_image,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ newProfileImage: forms.profile_image }),
         },
       );
 
       const data = await res.json();
-
       setUser(data);
-    } catch (err) {
-      console.error(err);
+      ctx?.setUser?.(data);
+
+      setSuccess("profile_image");
+    } catch {
+      setErrorState("profile_image");
     }
   }
 
   async function updatePassword() {
     if (!user) return;
+    setSaving("password");
 
     try {
-      await fetch(`http://localhost:9003/api/users/password/${user.uid}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
+      await fetch(
+        `https://webdev.aboutkonrad.com/api/users/password/${user.uid}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ newPassword: forms.password }),
         },
-        body: JSON.stringify({
-          newPassword: forms.password,
-        }),
-      });
+      );
 
-      setForms((prev) => ({
-        ...prev,
-        password: "",
-      }));
-    } catch (err) {
-      console.error(err);
+      setForms((p) => ({ ...p, password: "" }));
+      setSuccess("password");
+    } catch {
+      setErrorState("password");
     }
   }
 
   async function deleteAccount() {
     if (!user) return;
 
-    try {
-      await fetch(`http://localhost:9003/api/users/${user.uid}`, {
-        method: "DELETE",
-      });
+    await fetch(`https://webdev.aboutkonrad.com/api/users/id/${user.uid}`, {
+      method: "DELETE",
+    });
 
-      localStorage.removeItem("uid");
+    localStorage.removeItem("uid");
+    ctx?.setUser?.(null);
 
-      navigate("/");
-    } catch (err) {
-      console.error(err);
-    }
+    navigate("/");
   }
 
-  if (!ctx) {
-    return <ContextInitError />;
-  }
+  /* ================= GUARDS ================= */
+
+  if (!ctx) return <ContextInitError />;
 
   if (loading || !user) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header />
-
-        <div className="max-w-5xl mx-auto px-6 py-12">
-          <p>Loading settings...</p>
-        </div>
+        <div className="max-w-5xl mx-auto px-6 py-12">Loading settings...</div>
       </div>
     );
   }
+
+  /* ================= UI ================= */
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
 
-      {/* BODY */}
+      {/* HEADER */}
       <div className="w-full bg-linear-to-br from-(--local-green-light)/80 to-(--local-green-dark)">
-        <div className="max-w-6xl mx-auto px-6 py-10">
-          <div className="flex items-center gap-5">
-            <div className="w-22 h-22 rounded-3xl overflow-hidden bg-white/15 backdrop-blur-md border border-white/20 shadow-xl">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-5 text-center sm:text-left">
+            <div className="w-20 sm:w-22 h-20 sm:h-22 rounded-3xl overflow-hidden bg-white/15 backdrop-blur-md border border-white/20 shadow-xl flex items-center justify-center">
               {profilePreview ? (
                 <img
                   src={profilePreview}
-                  alt="profile"
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <User size={46} className="text-white" />
-                </div>
+                <User size={40} className="text-white" />
               )}
             </div>
 
             <div className="text-white">
-              <h1 className="text-4xl font-bold tracking-tight">
+              <h1 className="text-2xl sm:text-4xl font-bold">
                 Account Settings
               </h1>
-
-              <p className="mt-2 text-white/80 text-lg">
+              <p className="text-sm sm:text-lg text-white/80">
                 Manage your profile and account preferences.
               </p>
             </div>
@@ -354,267 +384,160 @@ export default function Settings() {
       </div>
 
       {/* MAIN */}
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        <div className="space-y-6">
-          {/* USERNAME */}
-          <SettingsCard
-            icon={<User size={20} />}
-            title="Username"
-            description="Your public username."
-          >
-            <div className="flex gap-3">
-              <input
-                value={forms.username}
-                onChange={(e) =>
-                  setForms((prev) => ({
-                    ...prev,
-                    username: e.target.value,
-                  }))
-                }
-                className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-(--local-green-light)/50"
-              />
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-5">
+        <SettingsCard
+          icon={<User />}
+          title="Username"
+          description="Public username"
+        >
+          <Field
+            value={forms.username}
+            onChange={(v) => setForms((p) => ({ ...p, username: v }))}
+            onSave={updateUsername}
+            state={saveState.username}
+          />
+        </SettingsCard>
 
-              <SaveButton onClick={updateUsername} />
+        <SettingsCard icon={<User />} title="Full Name" description="Real name">
+          <Field
+            value={forms.fullname}
+            onChange={(v) => setForms((p) => ({ ...p, fullname: v }))}
+            onSave={updateFullname}
+            state={saveState.fullname}
+          />
+        </SettingsCard>
+
+        <SettingsCard icon={<Mail />} title="Email" description="Email address">
+          <Field
+            value={forms.email}
+            onChange={(v) => setForms((p) => ({ ...p, email: v }))}
+            onSave={updateEmail}
+            state={saveState.email}
+          />
+        </SettingsCard>
+
+        <SettingsCard icon={<Calendar />} title="DOB" description="Birthday">
+          <Field
+            type="date"
+            value={forms.date_of_birth}
+            onChange={(v) => setForms((p) => ({ ...p, date_of_birth: v }))}
+            onSave={updateDOB}
+            state={saveState.date_of_birth}
+          />
+        </SettingsCard>
+
+        {/* PROFILE PICTURE */}
+        <SettingsCard
+          icon={<ImageIcon />}
+          title="Profile Picture"
+          description=""
+        >
+          <div className="flex flex-col gap-5 items-center sm:items-start justify-start w-fit mt-4">
+            {/* Upload Circle */}
+            <div
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+              className={`group relative w-24 sm:w-40 h-24 sm:h-40 rounded-full overflow-hidden border-3 transition-all duration-300 flex items-center justify-center
+      ${
+        dragActive
+          ? "border-(--local-green) scale-105 bg-green-50"
+          : "border-(--local-green-light) hover:border-(--local-green)"
+      }`}
+            >
+              <label className="absolute inset-0 cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleImage(e.target.files?.[0] || null)}
+                />
+
+                {/* IMAGE STATE */}
+                {profilePreview ? (
+                  <div className="relative w-full h-full">
+                    <img
+                      src={profilePreview}
+                      className="w-full h-full object-cover block"
+                    />
+
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                      <p className="text-white text-sm font-medium">Change</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-gray-400 gap-1 w-full h-full">
+                    <User size={isMobile ? 36 : 52} className="sm:size-10" />
+                    <p className="text-xs sm:text-sm text-center">Upload</p>
+                  </div>
+                )}
+              </label>
             </div>
-          </SettingsCard>
 
-          {/* FULL NAME */}
-          <SettingsCard
-            icon={<User size={20} />}
-            title="Full Name"
-            description="Your real name."
-          >
-            <div className="flex gap-3">
-              <input
-                value={forms.fullname}
-                onChange={(e) =>
-                  setForms((prev) => ({
-                    ...prev,
-                    fullname: e.target.value,
-                  }))
-                }
-                className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-(--local-green-light)/50"
-              />
-
-              <SaveButton onClick={updateFullname} />
-            </div>
-          </SettingsCard>
-
-          {/* EMAIL */}
-          <SettingsCard
-            icon={<Mail size={20} />}
-            title="Email"
-            description="Your account email address."
-          >
-            <div className="flex gap-3">
-              <input
-                type="email"
-                value={forms.email}
-                onChange={(e) =>
-                  setForms((prev) => ({
-                    ...prev,
-                    email: e.target.value,
-                  }))
-                }
-                className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-(--local-green-light)/50"
-              />
-
-              <SaveButton onClick={updateEmail} />
-            </div>
-          </SettingsCard>
-
-          {/* DATE OF BIRTH */}
-          <SettingsCard
-            icon={<Calendar size={20} />}
-            title="Date of Birth"
-            description="Update your birthday."
-          >
-            <div className="flex gap-3">
-              <input
-                type="date"
-                value={forms.date_of_birth}
-                onChange={(e) =>
-                  setForms((prev) => ({
-                    ...prev,
-                    date_of_birth: e.target.value,
-                  }))
-                }
-                className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-(--local-green-light)/50"
-              />
-
-              <SaveButton onClick={updateDOB} />
-            </div>
-          </SettingsCard>
-
-          {/* PROFILE IMAGE */}
-          <SettingsCard
-            icon={<Image size={20} />}
-            title="Profile Image"
-            description="Upload or change your profile picture."
-          >
-            <div className="space-y-5">
-              {/* UPLOAD CIRCLE */}
-              <div
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-                className={`group relative w-40 h-40 rounded-full overflow-hidden border-3 transition-all duration-300
-                ${
-                  dragActive
-                    ? "border-(--local-green) scale-105 bg-green-50"
-                    : "border-(--local-green-light) hover:border-(--local-green)"
-                }`}
+            {/* ACTIONS */}
+            <div className="flex items-center mx-auto gap-3">
+              <button
+                onClick={() => setProfilePreview(null)}
+                className="text-sm text-red-500 hover:text-red-700 transition"
               >
-                <label className="w-full h-full cursor-pointer flex items-center justify-center">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => handleImage(e.target.files?.[0] || null)}
-                  />
+                Remove
+              </button>
 
-                  {/* IAMGE */}
-                  {profilePreview ? (
-                    <>
-                      <img
-                        src={profilePreview}
-                        alt="Profile Preview"
-                        className="w-full h-full object-cover"
-                      />
-
-                      {/* HOVER OVERLAY */}
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
-                        <p className="text-white text-sm font-semibold text-center px-3">
-                          Click to change
-                        </p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      {/* EMPTY STATE */}
-                      <div className="flex flex-col items-center justify-center text-gray-400 gap-2">
-                        <User size={72} strokeWidth={1.5} />
-
-                        <p className="text-sm font-medium text-center px-4">
-                          Click to upload
-                        </p>
-                      </div>
-
-                      {/* HOVER OVERLAY */}
-                      <div className="absolute inset-0 bg-(--local-green)/10 opacity-0 group-hover:opacity-100 transition-all duration-300" />
-                    </>
-                  )}
-                </label>
-              </div>
-
-              {/* REMOVE */}
-              {profilePreview && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setProfilePreview(null);
-
-                    setForms((prev) => ({
-                      ...prev,
-                      profile_image: "",
-                    }));
-                  }}
-                  className="text-sm text-red-500 hover:text-red-700 transition-all duration-200 hover:scale-105 cursor-pointer"
-                >
-                  Remove Image
-                </button>
-              )}
-
-              <SaveButton onClick={updateProfileImage} />
-            </div>
-          </SettingsCard>
-
-          {/* PASSWORD */}
-          <SettingsCard
-            icon={<Lock size={20} />}
-            title="Password"
-            description="Change your password."
-          >
-            <div className="flex gap-3">
-              <input
-                type="password"
-                value={forms.password}
-                onChange={(e) =>
-                  setForms((prev) => ({
-                    ...prev,
-                    password: e.target.value,
-                  }))
-                }
-                placeholder="New password"
-                className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:outline-hidden focus:ring-2 focus:ring-(--local-green-light)/50"
+              <SaveButton
+                onClick={updateProfileImage}
+                state={saveState.profile_image}
               />
-
-              <SaveButton onClick={updatePassword} />
-            </div>
-          </SettingsCard>
-
-          {/* DELETE ACCOUNT */}
-          <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-red-600">
-                <AlertTriangle size={22} />
-              </div>
-
-              <div className="flex-1">
-                <h2 className="text-xl font-bold text-red-600">
-                  Delete Account
-                </h2>
-
-                <p className="text-gray-600 mt-2">
-                  Permanently delete your account and all associated data.
-                </p>
-
-                <button
-                  onClick={() => setShowDeleteModal(true)}
-                  className="mt-5 flex items-center gap-2 px-5 py-3 rounded-xl bg-red-600 text-white hover:bg-red-500 transition-all duration-300 cursor-pointer"
-                >
-                  <Trash2 size={18} />
-                  Delete Account
-                </button>
-              </div>
             </div>
           </div>
+        </SettingsCard>
+
+        <SettingsCard icon={<Lock />} title="Password" description="">
+          <Field
+            type="password"
+            value={forms.password}
+            onChange={(v) => setForms((p) => ({ ...p, password: v }))}
+            onSave={updatePassword}
+            state={saveState.password}
+          />
+        </SettingsCard>
+
+        {/* DELETE */}
+        <div className="bg-white border border-red-200 rounded-2xl p-5 sm:p-6">
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            className="flex items-center gap-2 text-red-600 font-bold"
+          >
+            <Trash2 size={18} />
+            Delete Account
+          </button>
         </div>
       </div>
 
-      {/* DELETE MODAL */}
+      {/* MODAL */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-md bg-white rounded-3xl border shadow-2xl overflow-hidden">
-            <div className="p-6">
-              <div className="w-16 h-16 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mx-auto">
-                <Trash2 size={28} />
-              </div>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-2xl w-full max-w-md">
+            <h2 className="text-xl font-bold">Delete account?</h2>
 
-              <h2 className="text-2xl font-bold text-center mt-5">
-                Delete Account?
-              </h2>
+            <p className="flex items-center gap-2 mt-3 text-red-600">
+              <AlertTriangle size={40} /> This action is irreversible and will
+              delete all your data. Are you sure?
+            </p>
 
-              <p className="text-gray-500 text-center mt-3">
-                This action cannot be undone.
-              </p>
-
-              <div className="flex gap-3 mt-8">
-                <button
-                  onClick={() => setShowDeleteModal(false)}
-                  className="flex-1 px-5 py-3 rounded-xl border border-gray-200 hover:bg-gray-100 transition-all cursor-pointer"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  onClick={deleteAccount}
-                  className="flex-1 px-5 py-3 rounded-xl bg-red-600 text-white hover:bg-red-500 transition-all cursor-pointer"
-                >
-                  Delete
-                </button>
-              </div>
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 border p-3 rounded-xl button"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteAccount}
+                className="flex-1 bg-red-600 text-white p-3 rounded-xl button"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
@@ -637,19 +560,15 @@ function SettingsCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white rounded-2xl border shadow-sm p-6">
-      <div className="flex items-start gap-4">
-        <div className="w-12 h-12 rounded-xl bg-(--local-green-light)/20 text-(--local-green-dark) flex items-center justify-center">
-          {icon}
-        </div>
+    <div className="bg-white border rounded-2xl p-5 sm:p-6">
+      <div className="flex gap-3 sm:gap-4">
+        <div className="text-(--local-green-dark)">{icon}</div>
 
         <div className="flex-1">
-          <h2 className="text-xl font-bold text-(--local-green-dark)">
-            {title}
-          </h2>
-
-          <p className="text-gray-500 mt-1 mb-5">{description}</p>
-
+          <h2 className="font-bold text-lg">{title}</h2>
+          {description && (
+            <p className="text-gray-500 text-sm mb-4">{description}</p>
+          )}
           {children}
         </div>
       </div>
@@ -657,14 +576,61 @@ function SettingsCard({
   );
 }
 
-function SaveButton({ onClick }: { onClick: () => void }) {
+function Field({
+  value,
+  onChange,
+  onSave,
+  state,
+  type = "text",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onSave: () => void;
+  state: string;
+  type?: string;
+}) {
+  return (
+    <div className="flex flex-col sm:flex-row gap-3">
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="flex-1 border p-3 rounded-xl"
+      />
+
+      <button
+        onClick={onSave}
+        className="bg-(--local-green) text-white px-5 py-3 rounded-xl"
+      >
+        {state === "saving"
+          ? "Saving..."
+          : state === "success"
+            ? "Saved ✓"
+            : state === "error"
+              ? "Error"
+              : "Save"}
+      </button>
+    </div>
+  );
+}
+
+function SaveButton({
+  onClick,
+  state,
+}: {
+  onClick: () => void;
+  state: string;
+}) {
   return (
     <button
       onClick={onClick}
-      className="px-5 py-3 rounded-xl bg-(--local-green) text-white hover:bg-(--local-green-light) hover:scale-105 transition-all duration-300 shadow-sm cursor-pointer flex items-center gap-2"
+      className="bg-(--local-green) text-white px-4 py-2 rounded-xl button"
     >
-      <Save size={18} />
-      Save
+      {state === "saving"
+        ? "Saving..."
+        : state === "success"
+          ? "Saved ✓"
+          : "Save"}
     </button>
   );
 }

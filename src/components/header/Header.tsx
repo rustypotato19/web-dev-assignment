@@ -3,6 +3,7 @@ import { CircleChevronDown } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
 import AuthContext from "../../utils/contexts/sessions/AuthContext";
 import { ContextInitError } from "../error/Error";
+import useWindowDimensions from "../../utils/helpers/WindowSize";
 
 export default function Header() {
   const auth = useContext(AuthContext);
@@ -10,6 +11,10 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const headerHeight = 96 + 32 + 32; // 96 height, 32 pt, 32 pb
+
+  const { width } = useWindowDimensions();
+
+  const isMobile = width < 640;
 
   useEffect(() => {
     //
@@ -23,7 +28,9 @@ export default function Header() {
     if (!auth.isLoggedIn && localStorage.getItem("uid")) {
       const storedUid = localStorage.getItem("uid");
 
-      const result = fetch(`http://localhost:9003/api/users/${storedUid}`);
+      const result = fetch(
+        `https://webdev.aboutkonrad.com/api/users/id/${storedUid}`,
+      );
 
       const handleResult = async () => {
         try {
@@ -63,11 +70,11 @@ export default function Header() {
   return (
     <>
       <div
-        className={`relative w-screen flex items-center justify-between bg-(--local-green) text-white h-24 p-8 z-30 shadow-xl`}
+        className={`relative w-screen flex items-center justify-between bg-(--local-green) text-white h-16 sm:h-24 p-6 sm:p-8 z-40 shadow-xl`}
       >
         <a
           href="/"
-          className="text-2xl font-bold hover:scale-105 transition-all duration-300"
+          className="text-xl sm:text-2xl font-bold hover:scale-105 transition-all duration-300"
         >
           mygiftlist.com
         </a>
@@ -81,8 +88,8 @@ export default function Header() {
             transition={{ duration: 0.4 }}
           >
             <CircleChevronDown
-              width={48}
-              height={48}
+              width={isMobile ? 32 : 48}
+              height={isMobile ? 32 : 48}
               strokeWidth={1}
               className="hover:bg-(--local-green-light) transition-all duration-300 rounded-full"
             />
@@ -90,7 +97,7 @@ export default function Header() {
         </div>
       </div>
 
-      <div className="z-20">
+      <div className="z-30">
         <AnimatePresence mode="wait">
           {menuOpen && <NavModal pxOffset={headerHeight} />}
         </AnimatePresence>
@@ -139,7 +146,7 @@ function NavModal({ pxOffset }: { pxOffset: number }) {
       transition={{ duration: 0.8 }}
       className={`absolute right-0 top-${pxOffset} bg-(--local-green) shadow-xl text-white rounded-b-2xl overflow-hidden border border-(--local-green-dark)`}
     >
-      <div className={`flex flex-col w-40 h-${itemHeight} text-center`}>
+      <div className={`flex flex-col w-26 sm:w-40 h-${itemHeight} text-center`}>
         {Object.entries(navItems).map(([label, href]) => (
           <a
             key={label}

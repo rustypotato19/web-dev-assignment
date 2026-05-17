@@ -118,7 +118,7 @@ function ContactSection() {
     if (!valid) return;
 
     try {
-      const res = await fetch("http://localhost:9003/api/mail/contact", {
+      const res = await fetch("https://webdev.aboutkonrad.com/api/mail/contact", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

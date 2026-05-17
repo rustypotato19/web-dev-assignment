@@ -51,7 +51,7 @@ export default function Lists() {
       } else {
         try {
           const res = await fetch(
-            `http://localhost:9003/api/users/username/${paramUsername}`,
+            `https://webdev.aboutkonrad.com/api/users/username/${paramUsername}`,
           );
 
           if (!res.ok) {
@@ -69,7 +69,7 @@ export default function Lists() {
 
       try {
         const listsRes = await fetch(
-          `http://localhost:9003/api/lists/user/${fetchUid}`,
+          `https://webdev.aboutkonrad.com/api/lists/user/${fetchUid}`,
         );
 
         if (!listsRes.ok) {
@@ -110,7 +110,7 @@ export default function Lists() {
         return;
       }
 
-      const res = await fetch(`http://localhost:9003/api/lists/create/${uid}`, {
+      const res = await fetch(`https://webdev.aboutkonrad.com/api/lists/create/${uid}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

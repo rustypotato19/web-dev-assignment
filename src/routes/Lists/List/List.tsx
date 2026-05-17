@@ -75,7 +75,9 @@ export default function List() {
 
         if (!storedUid) return;
 
-        const res = await fetch(`http://localhost:9003/api/users/${storedUid}`);
+        const res = await fetch(
+          `https://webdev.aboutkonrad.com/api/users/id/${storedUid}`,
+        );
 
         if (!res.ok) return;
 
@@ -105,10 +107,10 @@ export default function List() {
       try {
         const [listRes, itemsRes] = await Promise.all([
           fetch(
-            `http://localhost:9003/api/lists/user/list/${encodeURIComponent(listid)}`,
+            `https://webdev.aboutkonrad.com/api/lists/user/list/${encodeURIComponent(listid)}`,
           ),
           fetch(
-            `http://localhost:9003/api/lists/items/${encodeURIComponent(listid)}`,
+            `https://webdev.aboutkonrad.com/api/lists/items/${encodeURIComponent(listid)}`,
           ),
         ]);
 
@@ -130,7 +132,10 @@ export default function List() {
         console.error(err);
         /* setError("Failed to fetch list"); */
         return (
-          <MyError ErrorCode={404} ErrorMessage={"Failed to get this list"} />
+          <MyError
+            ErrorCode={404}
+            ErrorMessage="This list could not be found. Try again later."
+          />
         );
       } finally {
         setLoading(false);
@@ -155,7 +160,7 @@ export default function List() {
 
     try {
       const res = await fetch(
-        `http://localhost:9003/api/lists/items/create/${listid}`,
+        `https://webdev.aboutkonrad.com/api/lists/items/create/${listid}`,
         {
           method: "POST",
           headers: {
@@ -188,7 +193,7 @@ export default function List() {
 
     try {
       const res = await fetch(
-        `http://localhost:9003/api/lists/items/update/${editingItem.itemid}`,
+        `https://webdev.aboutkonrad.com/api/lists/items/update/${editingItem.itemid}`,
         {
           method: "PUT",
           headers: {
@@ -218,7 +223,7 @@ export default function List() {
 
     try {
       await fetch(
-        `http://localhost:9003/api/lists/items/delete/${editingItem.itemid}`,
+        `https://webdev.aboutkonrad.com/api/lists/items/delete/${editingItem.itemid}`,
         {
           method: "DELETE",
         },
@@ -242,7 +247,7 @@ export default function List() {
 
     try {
       const res = await fetch(
-        `http://localhost:9003/api/lists/update/${list.listid}`,
+        `https://webdev.aboutkonrad.com/api/lists/update/${list.listid}`,
         {
           method: "PUT",
           headers: {
@@ -267,9 +272,12 @@ export default function List() {
     if (!list) return;
 
     try {
-      await fetch(`http://localhost:9003/api/lists/delete/${list.listid}`, {
-        method: "DELETE",
-      });
+      await fetch(
+        `https://webdev.aboutkonrad.com/api/lists/delete/${list.listid}`,
+        {
+          method: "DELETE",
+        },
+      );
 
       navigate("/lists");
     } catch (err) {
@@ -419,7 +427,7 @@ export default function List() {
 
           <button
             onClick={updateItem}
-            className="w-full bg-(--local-green) hover:bg-(--local-green-dark) transition-all duration-300 text-white rounded-xl py-3 font-semibold mt-5 flex items-center justify-center gap-2"
+            className="w-full bg-(--local-green) hover:bg-(--local-green-dark) transition-all duration-300 text-white rounded-xl py-3 font-semibold mt-5 flex items-center justify-center gap-2 cursor-pointer"
           >
             <Save size={18} />
             Save Changes

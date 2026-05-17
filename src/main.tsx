@@ -17,6 +17,7 @@ import About from "./routes/about/About";
 import Lists from "./routes/Lists/Lists";
 import List from "./routes/Lists/List/List";
 import Settings from "./routes/settings/Settings";
+import Logout from "./routes/logout/Logout";
 
 createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
@@ -36,6 +37,8 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/lists/:username?" element={<Lists />} />
 
           <Route path="/list/:listid" element={<List />} />
+
+          <Route path="/logout" element={<Logout />} />
 
           <Route path="/about" element={<About />} />
           <Route path="/about/:anchor" element={<About />} />
