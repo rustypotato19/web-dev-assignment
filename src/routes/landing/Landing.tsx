@@ -60,8 +60,7 @@ export default function Landing() {
             <AnimatePresence mode="sync">
               <motion.div
                 initial={{ x: -300, opacity: 0 }}
-                whileInView={{ x: 0, opacity: 1 }}
-                viewport={{ once: true, amount: 0.2 }}
+                animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 1.1 }}
                 className="w-full"
               >
@@ -73,8 +72,7 @@ export default function Landing() {
 
               <motion.div
                 initial={{ x: 300, opacity: 0 }}
-                whileInView={{ x: 0, opacity: 1 }}
-                viewport={{ once: true, amount: 0.2 }}
+                animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 1.1 }}
                 className="w-full"
               >

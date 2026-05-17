@@ -5,7 +5,6 @@ import {
   User,
   Mail,
   Calendar,
-  Lock,
   Image as ImageIcon,
   Trash2,
   AlertTriangle,
@@ -24,9 +23,12 @@ type UserData = {
   date_of_birth: string;
   profile_image: string;
   created: string;
+  updated: string;
 };
 
 type SaveState = "idle" | "saving" | "success" | "error";
+
+type SaveStateMap = Record<string, SaveState>;
 
 export default function Settings() {
   const ctx = useContext(AuthContext);
@@ -49,16 +51,14 @@ export default function Settings() {
     email: "",
     date_of_birth: "",
     profile_image: "",
-    password: "",
   });
 
-  const [saveState, setSaveState] = useState<Record<string, SaveState>>({
+  const [saveState, setSaveState] = useState<SaveStateMap>({
     username: "idle",
     fullname: "idle",
     email: "idle",
     date_of_birth: "idle",
     profile_image: "idle",
-    password: "idle",
   });
 
   /* ================= FETCH USER ================= */
@@ -73,29 +73,30 @@ export default function Settings() {
         } else {
           const storedUid = localStorage.getItem("uid");
           if (!storedUid) return;
-          uid = parseInt(storedUid, 10);
+          uid = Number(storedUid);
         }
 
         const res = await fetch(
           `https://webdev.aboutkonrad.com/api/users/id/${uid}`,
         );
 
-        const data = await res.json();
+        if (!res.ok) throw new Error("Failed to fetch user");
+
+        const data: UserData = await res.json();
 
         setUser(data);
 
         setForms({
-          username: data.username || "",
-          fullname: data.fullname || "",
-          email: data.email || "",
+          username: data.username ?? "",
+          fullname: data.fullname ?? "",
+          email: data.email ?? "",
           date_of_birth: data.date_of_birth
             ? data.date_of_birth.split("T")[0]
             : "",
-          profile_image: data.profile_image || "",
-          password: "",
+          profile_image: data.profile_image ?? "",
         });
 
-        setProfilePreview(data.profile_image || null);
+        setProfilePreview(data.profile_image ?? null);
       } catch (err) {
         console.error(err);
       } finally {
@@ -119,24 +120,26 @@ export default function Settings() {
     e.stopPropagation();
     setDragActive(false);
 
-    if (e.dataTransfer.files?.[0]) {
-      handleImage(e.dataTransfer.files[0]);
-    }
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleImage(file);
   }
 
   function handleImage(file: File | null) {
     if (!file) return;
 
-    const img = new Image();
     const reader = new FileReader();
+    const img = new Image();
 
-    reader.onload = (e) => {
-      img.src = e.target?.result as string;
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        img.src = reader.result;
+      }
     };
 
     img.onload = () => {
       const canvas = document.createElement("canvas");
       const MAX_WIDTH = 250;
+
       const scale = MAX_WIDTH / img.width;
 
       canvas.width = MAX_WIDTH;
@@ -146,14 +149,22 @@ export default function Settings() {
       if (!ctx) return;
 
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
       const compressed = canvas.toDataURL("image/jpeg", 0.7);
       setProfilePreview(compressed);
+
+      setForms((p) => ({
+        ...p,
+        profile_image: compressed,
+      }));
+
+      console.log(compressed.slice(10)[0]);
     };
 
     reader.readAsDataURL(file);
   }
 
-  /* ================= OPTIMISTIC SAVE HELPERS ================= */
+  /* ================= SAVE STATES ================= */
 
   function setSaving(key: string) {
     setSaveState((p) => ({ ...p, [key]: "saving" }));
@@ -161,19 +172,22 @@ export default function Settings() {
 
   function setSuccess(key: string) {
     setSaveState((p) => ({ ...p, [key]: "success" }));
-    setTimeout(() => setSaveState((p) => ({ ...p, [key]: "idle" })), 1500);
+    setTimeout(() => {
+      setSaveState((p) => ({ ...p, [key]: "idle" }));
+    }, 1500);
   }
 
   function setErrorState(key: string) {
     setSaveState((p) => ({ ...p, [key]: "error" }));
-    setTimeout(() => setSaveState((p) => ({ ...p, [key]: "idle" })), 2000);
+    setTimeout(() => {
+      setSaveState((p) => ({ ...p, [key]: "idle" }));
+    }, 2000);
   }
 
   /* ================= UPDATE FUNCTIONS ================= */
 
   async function updateUsername() {
     if (!user) return;
-
     setSaving("username");
 
     try {
@@ -186,23 +200,17 @@ export default function Settings() {
         },
       );
 
-      const data = await res.json();
+      const data: UserData = await res.json();
+
+      if (!res.ok) throw new Error("Failed");
 
       setUser(data);
-
-      // 🔥 IMPORTANT: optimistic auth fix
-      if (ctx?.setUser) {
-        ctx.setUser(data);
-      }
+      ctx?.setUser?.(data);
 
       localStorage.setItem("uid", String(data.uid));
 
       setSuccess("username");
-
-      // fix stale routing issue
-      //navigate(`/profile/${data.username}`);
-    } catch (err) {
-      console.error(err);
+    } catch {
       setErrorState("username");
     }
   }
@@ -221,13 +229,16 @@ export default function Settings() {
         },
       );
 
-      const data = await res.json();
+      const data: UserData = await res.json();
+
+      if (!res.ok) throw new Error();
+
       setUser(data);
       ctx?.setUser?.(data);
 
       setSuccess("fullname");
-    } catch (err) {
-      setErrorState(`fullname, ${err}`);
+    } catch {
+      setErrorState("fullname");
     }
   }
 
@@ -245,7 +256,10 @@ export default function Settings() {
         },
       );
 
-      const data = await res.json();
+      const data: UserData = await res.json();
+
+      if (!res.ok) throw new Error();
+
       setUser(data);
       ctx?.setUser?.(data);
 
@@ -269,7 +283,10 @@ export default function Settings() {
         },
       );
 
-      const data = await res.json();
+      const data: UserData = await res.json();
+
+      if (!res.ok) throw new Error();
+
       setUser(data);
       ctx?.setUser?.(data);
 
@@ -293,34 +310,16 @@ export default function Settings() {
         },
       );
 
-      const data = await res.json();
+      const data: UserData = await res.json();
+
+      if (!res.ok) throw new Error();
+
       setUser(data);
       ctx?.setUser?.(data);
 
       setSuccess("profile_image");
     } catch {
       setErrorState("profile_image");
-    }
-  }
-
-  async function updatePassword() {
-    if (!user) return;
-    setSaving("password");
-
-    try {
-      await fetch(
-        `https://webdev.aboutkonrad.com/api/users/password/${user.uid}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ newPassword: forms.password }),
-        },
-      );
-
-      setForms((p) => ({ ...p, password: "" }));
-      setSuccess("password");
-    } catch {
-      setErrorState("password");
     }
   }
 
@@ -345,7 +344,7 @@ export default function Settings() {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header />
-        <div className="max-w-5xl mx-auto px-6 py-12">Loading settings...</div>
+        <div className="max-w-5xl mx-auto px-6 py-12">Loading...</div>
       </div>
     );
   }
@@ -356,11 +355,10 @@ export default function Settings() {
     <div className="min-h-screen bg-gray-50">
       <Header />
 
-      {/* HEADER */}
       <div className="w-full bg-linear-to-br from-(--local-green-light)/80 to-(--local-green-dark)">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
-          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-5 text-center sm:text-left">
-            <div className="w-20 sm:w-22 h-20 sm:h-22 rounded-3xl overflow-hidden bg-white/15 backdrop-blur-md border border-white/20 shadow-xl flex items-center justify-center">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+          <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+            <div className="w-20 h-20 rounded-3xl overflow-hidden bg-white/20 flex items-center justify-center">
               {profilePreview ? (
                 <img
                   src={profilePreview}
@@ -372,24 +370,15 @@ export default function Settings() {
             </div>
 
             <div className="text-white">
-              <h1 className="text-2xl sm:text-4xl font-bold">
-                Account Settings
-              </h1>
-              <p className="text-sm sm:text-lg text-white/80">
-                Manage your profile and account preferences.
-              </p>
+              <h1 className="text-3xl font-bold">Account Settings</h1>
+              <p className="text-white/80">Manage your profile and account.</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* MAIN */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-5">
-        <SettingsCard
-          icon={<User />}
-          title="Username"
-          description="Public username"
-        >
+      <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">
+        <SettingsCard icon={<User />} title="Username" description="">
           <Field
             value={forms.username}
             onChange={(v) => setForms((p) => ({ ...p, username: v }))}
@@ -398,7 +387,7 @@ export default function Settings() {
           />
         </SettingsCard>
 
-        <SettingsCard icon={<User />} title="Full Name" description="Real name">
+        <SettingsCard icon={<User />} title="Full Name" description="">
           <Field
             value={forms.fullname}
             onChange={(v) => setForms((p) => ({ ...p, fullname: v }))}
@@ -407,7 +396,7 @@ export default function Settings() {
           />
         </SettingsCard>
 
-        <SettingsCard icon={<Mail />} title="Email" description="Email address">
+        <SettingsCard icon={<Mail />} title="Email" description="">
           <Field
             value={forms.email}
             onChange={(v) => setForms((p) => ({ ...p, email: v }))}
@@ -416,7 +405,7 @@ export default function Settings() {
           />
         </SettingsCard>
 
-        <SettingsCard icon={<Calendar />} title="DOB" description="Birthday">
+        <SettingsCard icon={<Calendar />} title="DOB" description="">
           <Field
             type="date"
             value={forms.date_of_birth}
@@ -426,35 +415,31 @@ export default function Settings() {
           />
         </SettingsCard>
 
-        {/* PROFILE PICTURE */}
         <SettingsCard
           icon={<ImageIcon />}
           title="Profile Picture"
           description=""
         >
           <div className="flex flex-col gap-5 items-center sm:items-start justify-start w-fit mt-4">
-            {/* Upload Circle */}
             <div
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
               onDrop={handleDrop}
-              className={`group relative w-24 sm:w-40 h-24 sm:h-40 rounded-full overflow-hidden border-3 transition-all duration-300 flex items-center justify-center
-      ${
-        dragActive
-          ? "border-(--local-green) scale-105 bg-green-50"
-          : "border-(--local-green-light) hover:border-(--local-green)"
-      }`}
+              className={`group relative w-24 sm:w-40 h-24 sm:h-40 rounded-full overflow-hidden border-3 transition-all duration-300 flex items-center justify-center ${
+                dragActive
+                  ? "border-(--local-green) scale-105 bg-green-50"
+                  : "border-(--local-green-light) hover:border-(--local-green)"
+              }`}
             >
               <label className="absolute inset-0 cursor-pointer">
                 <input
                   type="file"
                   accept="image/*"
                   className="hidden"
-                  onChange={(e) => handleImage(e.target.files?.[0] || null)}
+                  onChange={(e) => handleImage(e.target.files?.[0] ?? null)}
                 />
 
-                {/* IMAGE STATE */}
                 {profilePreview ? (
                   <div className="relative w-full h-full">
                     <img
@@ -468,45 +453,48 @@ export default function Settings() {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center text-gray-400 gap-1 w-full h-full">
-                    <User size={isMobile ? 36 : 52} className="sm:size-10" />
+                    <User size={isMobile ? 36 : 52} />
                     <p className="text-xs sm:text-sm text-center">Upload</p>
                   </div>
                 )}
               </label>
             </div>
 
-            {/* ACTIONS */}
-            <div className="flex items-center mx-auto gap-3">
-              <button
-                onClick={() => setProfilePreview(null)}
-                className="text-sm text-red-500 hover:text-red-700 transition"
-              >
-                Remove
-              </button>
+            <div className="flex flex-col gap-2 items-center sm:items-start mx-auto">
+              <div className="flex items-center gap-3 mx-auto">
+                <button
+                  onClick={() => {
+                    setForms((p) => ({
+                      ...p,
+                      profile_image: "",
+                    }));
+                    setProfilePreview(null);
+                  }}
+                  className="text-sm text-red-500 hover:text-red-700 transition cursor-pointer button"
+                >
+                  Remove
+                </button>
 
-              <SaveButton
-                onClick={updateProfileImage}
-                state={saveState.profile_image}
-              />
+                <button
+                  onClick={updateProfileImage}
+                  disabled={profilePreview === null}
+                  className="bg-(--local-green) text-white px-4 py-2 rounded-xl button"
+                >
+                  {saveState.profile_image === "saving"
+                    ? "Saving..."
+                    : saveState.profile_image === "success"
+                      ? "Saved"
+                      : "Save"}
+                </button>
+              </div>
             </div>
           </div>
         </SettingsCard>
 
-        <SettingsCard icon={<Lock />} title="Password" description="">
-          <Field
-            type="password"
-            value={forms.password}
-            onChange={(v) => setForms((p) => ({ ...p, password: v }))}
-            onSave={updatePassword}
-            state={saveState.password}
-          />
-        </SettingsCard>
-
-        {/* DELETE */}
-        <div className="bg-white border border-red-200 rounded-2xl p-5 sm:p-6">
+        <div className="bg-white border border-red-200 rounded-2xl flex items-center justify-center">
           <button
             onClick={() => setShowDeleteModal(true)}
-            className="flex items-center gap-2 text-red-600 font-bold"
+            className="text-red-600 font-bold flex items-center gap-2 px-5 py-4 button w-fit h-fit"
           >
             <Trash2 size={18} />
             Delete Account
@@ -514,15 +502,14 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* MODAL */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-2xl w-full max-w-md">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-2xl max-w-md w-full">
             <h2 className="text-xl font-bold">Delete account?</h2>
 
-            <p className="flex items-center gap-2 mt-3 text-red-600">
-              <AlertTriangle size={40} /> This action is irreversible and will
-              delete all your data. Are you sure?
+            <p className="text-red-600 flex items-center gap-2 mt-3">
+              <AlertTriangle size={30} />
+              This action cannot be undone.
             </p>
 
             <div className="flex gap-3 mt-5">
@@ -560,18 +547,15 @@ function SettingsCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white border rounded-2xl p-5 sm:p-6">
-      <div className="flex gap-3 sm:gap-4">
-        <div className="text-(--local-green-dark)">{icon}</div>
-
-        <div className="flex-1">
-          <h2 className="font-bold text-lg">{title}</h2>
-          {description && (
-            <p className="text-gray-500 text-sm mb-4">{description}</p>
-          )}
-          {children}
-        </div>
+    <div className="bg-white border rounded-2xl p-5">
+      <div className="flex items-center gap-3 mb-2">
+        {icon}
+        <h2 className="font-bold">{title}</h2>
       </div>
+      {description && (
+        <p className="text-gray-500 text-sm mb-3">{description}</p>
+      )}
+      {children}
     </div>
   );
 }
@@ -586,11 +570,13 @@ function Field({
   value: string;
   onChange: (value: string) => void;
   onSave: () => void;
-  state: string;
+  state: SaveState;
   type?: string;
 }) {
+  const disabled = state === "saving" || value.length === 0;
+
   return (
-    <div className="flex flex-col sm:flex-row gap-3">
+    <div className="flex gap-3 flex-col sm:flex-row">
       <input
         type={type}
         value={value}
@@ -600,37 +586,15 @@ function Field({
 
       <button
         onClick={onSave}
-        className="bg-(--local-green) text-white px-5 py-3 rounded-xl"
+        disabled={disabled}
+        className="bg-(--local-green) text-white px-4 py-2 rounded-xl button transition"
       >
         {state === "saving"
           ? "Saving..."
           : state === "success"
-            ? "Saved ✓"
-            : state === "error"
-              ? "Error"
-              : "Save"}
+            ? "Saved"
+            : "Save"}
       </button>
     </div>
-  );
-}
-
-function SaveButton({
-  onClick,
-  state,
-}: {
-  onClick: () => void;
-  state: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="bg-(--local-green) text-white px-4 py-2 rounded-xl button"
-    >
-      {state === "saving"
-        ? "Saving..."
-        : state === "success"
-          ? "Saved ✓"
-          : "Save"}
-    </button>
   );
 }
