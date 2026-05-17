@@ -185,6 +185,7 @@ export default function Profile() {
       <ProfileLayout
         user={user}
         lists={lists}
+        setLists={setLists}
         isOwn={isOwnProfile || false}
         listModalOpen={listModalOpen}
         setListModalOpen={setListModalOpen}
@@ -203,6 +204,7 @@ export default function Profile() {
 function ProfileLayout({
   user,
   lists,
+  setLists,
   isOwn,
   listModalOpen,
   setListModalOpen,
@@ -214,6 +216,7 @@ function ProfileLayout({
 }: {
   user: User;
   lists: List[];
+  setLists: (lists: List[]) => void;
   isOwn: boolean;
   listModalOpen: boolean;
   setListModalOpen: (b: boolean) => void;
@@ -229,31 +232,48 @@ function ProfileLayout({
   const [error, setError] = useState<string | null>(null);
 
   async function joinList(uid: number, listid: number) {
-    try {
-      const res = await fetch("https://webdev.aboutkonrad.com/api/lists/join", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          uid,
-          listid,
-        }),
-      });
+    const res = await fetch("https://webdev.aboutkonrad.com/api/lists/join", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ uid, listid }),
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to join list");
-      }
-
-      setError(null);
-      return data; // { success: true }
-    } catch (err) {
-      console.error("JOIN LIST ERROR:", err);
+    if (!res.ok) {
       setError("Failed");
-      return { success: false, error: err };
+      throw new Error(data?.error || "Failed to join list");
     }
+
+    return data;
+  }
+
+  function handleJoin(listid: number) {
+    if (!currentUid) return;
+
+    // 1. optimistic update (UI changes instantly)
+    const prevLists = [...lists];
+
+    const updated = lists.map((l) => {
+      if (l.listid !== listid) return l;
+
+      return {
+        ...l,
+        members: l.members.includes(currentUid)
+          ? l.members
+          : [...l.members, currentUid],
+      };
+    });
+
+    setLists(updated);
+
+    // 2. API call
+    joinList(currentUid, listid).catch(() => {
+      // rollback on failure
+      setLists(prevLists);
+    });
   }
 
   const currentUid = ctx?.user?.uid;
@@ -367,17 +387,17 @@ function ProfileLayout({
 
                   <a
                     href={`/list/${list.listid}`}
-                    className="inline-block mt-3 text-xs md:text-sm bg-(--local-green) text-white px-3 py-1 rounded"
+                    className="inline-block mt-3 text-xs md:text-sm bg-(--local-green) text-white px-3 py-1 rounded button"
                   >
                     Open List
                   </a>
                   {!isOwn && !list.members.includes(currentUid ?? -1) && (
                     <button
                       onClick={() => {
-                        joinList(currentUid ?? -1, list.listid);
+                        handleJoin(list.listid);
                         console.log(list.members.includes(currentUid ?? -1));
                       }}
-                      className="inline-block mt-3 text-xs md:text-sm bg-(--local-green) text-white px-3 py-1 rounded ml-2"
+                      className="inline-block mt-3 text-xs md:text-sm bg-(--local-green) text-white px-3 py-1 rounded ml-2 button"
                     >
                       {error ?? "Join List"}
                     </button>
