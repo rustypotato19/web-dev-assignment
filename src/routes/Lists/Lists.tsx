@@ -312,7 +312,7 @@ export default function Lists() {
                   </label>
 
                   <textarea
-                    placeholder="Describe your list..."
+                    placeholder="(optional) Describe your list..."
                     value={createForm.description}
                     onChange={(e) =>
                       setCreateForm((prev) => ({
@@ -336,8 +336,8 @@ export default function Lists() {
 
                 <button
                   onClick={createList}
-                  disabled={!createForm.name || createForm.name === ""}
-                  className="px-5 py-3 rounded-xl bg-(--local-green) text-white hover:bg-(--local-green-light) hover:scale-105 transition-all duration-300 shadow-sm cursor-pointer flex items-center gap-2 disabled:bg-neutral-200 disabled:cursor-not-allowed"
+                  disabled={createForm.name === null || createForm.name === ""}
+                  className="px-5 py-3 rounded-xl bg-(--local-green) text-white hover:bg-(--local-green-light) hover:scale-105 transition-all duration-300 shadow-sm cursor-pointer flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100 disabled:bg-(--local-green)"
                 >
                   <Plus size={18} />
                   Create List
