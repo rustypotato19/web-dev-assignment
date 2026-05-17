@@ -147,7 +147,7 @@ export default function Profile() {
     return <MyError ErrorCode={404} ErrorMessage={error || "User not found"} />;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 relative">
       <Header />
 
       <ProfileLayout
@@ -193,7 +193,7 @@ function ProfileLayout({
 
   return (
     <>
-      {/* HERO */}
+      {/* BODY */}
       <div className="w-full bg-linear-to-br from-(--local-green-light)/80 to-(--local-green-dark) text-white">
         <div className="max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-10 flex flex-col md:flex-row items-center md:items-end gap-6 md:gap-8 text-center md:text-left">
           <div className="w-28 h-28 md:w-52 md:h-52 rounded-full overflow-hidden border-4 border-(--local-green-dark) bg-white flex items-center justify-center">
@@ -313,7 +313,8 @@ function ProfileLayout({
           setOpen={setListModalOpen}
           createList={createList}
         />
-
+      </AnimatePresence>
+      <AnimatePresence mode="sync">
         <ConfirmDeleteModal
           open={confirmDelete}
           setOpen={setConfirmDelete}

@@ -6,7 +6,7 @@ import {
   Mail,
   Calendar,
   Lock,
-  Image,
+  Image as ImageIcon,
   Trash2,
   AlertTriangle,
 } from "lucide-react";
@@ -127,16 +127,27 @@ export default function Settings() {
   function handleImage(file: File | null) {
     if (!file) return;
 
+    const img = new Image();
     const reader = new FileReader();
 
-    reader.onloadend = () => {
-      const result = reader.result as string;
+    reader.onload = (e) => {
+      img.src = e.target?.result as string;
+    };
 
-      setProfilePreview(result);
-      setForms((prev) => ({
-        ...prev,
-        profile_image: result,
-      }));
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const MAX_WIDTH = 250;
+      const scale = MAX_WIDTH / img.width;
+
+      canvas.width = MAX_WIDTH;
+      canvas.height = img.height * scale;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const compressed = canvas.toDataURL("image/jpeg", 0.7);
+      setProfilePreview(compressed);
     };
 
     reader.readAsDataURL(file);
@@ -416,7 +427,11 @@ export default function Settings() {
         </SettingsCard>
 
         {/* PROFILE PICTURE */}
-        <SettingsCard icon={<Image />} title="Profile Picture" description="">
+        <SettingsCard
+          icon={<ImageIcon />}
+          title="Profile Picture"
+          description=""
+        >
           <div className="flex flex-col gap-5 items-center sm:items-start justify-start w-fit mt-4">
             {/* Upload Circle */}
             <div

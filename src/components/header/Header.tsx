@@ -70,7 +70,7 @@ export default function Header() {
   return (
     <>
       <div
-        className={`relative w-screen flex items-center justify-between bg-(--local-green) text-white h-16 sm:h-24 p-6 sm:p-8 z-30 shadow-xl`}
+        className={`relative w-screen flex items-center justify-between bg-(--local-green) text-white h-16 sm:h-24 p-6 sm:p-8 z-40 shadow-xl`}
       >
         <a
           href="/"
@@ -97,7 +97,7 @@ export default function Header() {
         </div>
       </div>
 
-      <div className="z-20">
+      <div className="z-30">
         <AnimatePresence mode="wait">
           {menuOpen && <NavModal pxOffset={headerHeight} />}
         </AnimatePresence>
@@ -146,13 +146,12 @@ function NavModal({ pxOffset }: { pxOffset: number }) {
       transition={{ duration: 0.8 }}
       className={`absolute right-0 top-${pxOffset} bg-(--local-green) shadow-xl text-white rounded-b-2xl overflow-hidden border border-(--local-green-dark)`}
     >
-      <div className={`flex flex-col w-40 h-${itemHeight} text-center`}>
+      <div className={`flex flex-col w-26 sm:w-40 h-${itemHeight} text-center`}>
         {Object.entries(navItems).map(([label, href]) => (
           <a
             key={label}
             href={href}
             className="text-lg font-bold py-3 border-y border-(--local-green-dark) hover:bg-(--local-green-dark) transition-all"
-            // disable if link is to current page
           >
             {label}
           </a>
